@@ -1,0 +1,325 @@
+---
+title: "CancerPlacenta"
+author: "Ashley"
+date: '2022-04-11'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Library
+```{r}
+library("tidyverse")
+library("janitor")
+library("hrbrthemes")
+library("psych")
+library("ggrepel")
+```
+
+Data
+```{r}
+lh <- read_csv("Pantheria_og.csv")
+pi <- read.csv("placenta__more_interdigitation.csv")
+np <- read.csv("neoplasiaPrevalence.min10.2022-04-01T19_13.csv")
+```
+
+Cleaning Data
+```{r}
+# Selecting & renaming variables
+lh <- lh %>%
+  clean_names()
+
+# rename variable & convert from months to days
+lh2 <- lh %>%
+  select(msw93_binomial, x3_1_ageat_first_birth_d, x9_1_gestation_len_d, x14_1_inter_birth_interval_d, x15_1_litter_size, x16_1_litters_per_year, x17_1_max_longevity_m, x23_1_sexual_maturity_age_d)%>%
+  rename(species = "msw93_binomial") %>%
+  rename(agefb = "x3_1_ageat_first_birth_d") %>%
+  rename(gestation = "x9_1_gestation_len_d") %>%
+  rename(interv = "x14_1_inter_birth_interval_d") %>%
+  rename(littersize = "x15_1_litter_size") %>%
+  rename(litterpyr = "x16_1_litters_per_year") %>%
+  rename(longev = "x17_1_max_longevity_m") %>%
+  rename(sexmat = "x23_1_sexual_maturity_age_d")%>%
+  mutate(longev *30)%>%
+  rename(longevd = "longev * 30")
+
+pi2 <- pi %>%
+  select(species, placenta_invasiveness, X.4, interdigitation_placenta, X.5)
+
+pi2$invade = pi2$X.4
+pi2$invade[pi2$invade == "1"] <- "4"
+pi2$invade[pi2$invade == "3"] <- "1"
+pi2$invade[pi2$invade == "4"] <- "3"
+
+pi2$digit = pi2$X.5
+pi2$digit[pi2$digit == "1"] <- "4"
+pi2$digit[pi2$digit == "3"] <- "1"
+pi2$digit[pi2$digit == "2"] <- "0"
+pi2$digit[pi2$digit == "1"] <- "2"
+pi2$digit[pi2$digit == "0"] <- "1"
+pi2$digit[pi2$digit == "4"] <- "3"
+
+pi3 <- pi2 %>%
+  select(species, placenta_invasiveness, invade, interdigitation_placenta, digit)
+
+np2 <- np %>%
+  select(KeepWildRecords.false, X.5, X.7, X.9, X.10, X.11) %>%
+  rename(species = "KeepWildRecords.false") %>%
+  rename(tot.neo = "X.5") %>%
+  rename(prev.neo = "X.7") %>%
+  rename(tot.mal = "X.9") %>%
+  rename(prev.mal = "X.10") %>%
+  rename(mal.trans = "X.11")
+
+# Life history + placental invasion/interdigitation
+combo1 <- merge(lh2, pi3, by= "species")
+
+anticombo1 <- anti_join(lh2, pi3, by = "species")
+
+# Life history + placental invasion/interdigitation + neoplasia/malignancy
+megaset <- merge(combo1, np2, by= "species")
+
+antimega <- anti_join(combo1, np2, by= "species")
+
+# Filter out missing values
+megaset1 <- megaset %>%
+  filter(!agefb==-999.00) %>%
+  filter(!gestation==-999.00) %>%
+  filter(!gestation==-999.00) %>%
+  filter(!interv==-999.00) %>%
+  filter(!litterpyr==-999.00) %>%
+  filter(!longev==-999.00) %>%
+  filter(!sexmat==-999.00)
+
+# Only 18 species with complete data!
+```
+
+Computations
+```{r}
+# Computing for births per lifetime:
+#   Lifespan - age at sexual maturation (assumes no post-reproductive period) = Reproductive lifespan
+megaset1.1 <- megaset1 %>%
+  mutate(longevd - sexmat)%>%
+  rename(reprolife = "longevd - sexmat") 
+
+#   Gestation length + interbirth interval = Time per litter
+megaset2 <- megaset1.1 %>%
+  mutate(gestation + interv) %>%
+  rename(timeprlit = "gestation + interv")
+
+#   Reproductive lifespan / time per litter = Birthing potential
+megaset3 <- megaset2 %>%
+  mutate(reprolife / timeprlit) %>%
+  rename(birthpotent = "reprolife/timeprlit")
+
+# Computing for offspring output:
+#   Maximum births per lifetime * Avg litter size
+megaset4 <- megaset3 %>%
+  mutate(birthpotent * littersize) %>%
+  rename(maxoffspring = "birthpotent * littersize")
+
+megaset5 <- merge(megaset4, megaset1, by= "species")
+
+```
+
+Life history graphs
+```{r}
+# Lifespan x Time per litter x Placental invasion
+megaset5 %>%
+  ggplot(.,aes(x=longevd.x, y=timeprlit, color= placenta_invasiveness.x))+
+  geom_point()+
+  geom_smooth(method = "lm", se= FALSE)+
+  geom_label_repel(aes(label = species))
+
+
+# Lifespan x Time per litter x Interdigitation
+megaset5 %>%
+  ggplot(.,aes(x=longevd.x, y=timeprlit, color= interdigitation_placenta.x))+
+  geom_point()+
+  geom_smooth(method = "lm", se= FALSE)+
+  geom_label_repel(aes(label = species))
+
+# Maximum birth potential x Placental Invasion
+megaset5 %>%
+  ggplot(., aes(y= birthpotent, x= placenta_invasiveness.x))+
+  geom_point()+
+  geom_label_repel(aes(label = species))
+
+```
+
+Placentas & Cancer Graphs
+```{r}
+
+# Placental invasion x neoplasia prevalence
+megaset5 %>%
+  ggplot(., aes(x= placenta_invasiveness.x, y= prev.neo.x))+
+  geom_point()+
+  geom_label_repel(aes(label = species))
+
+megaset5 %>%
+  ggplot(., aes(x= invade, y= prev.neo.x))+
+  geom_point()+
+  geom_label_repel(aes(label = species))
+
+
+# Interdigitation x malignancy prevalence
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(x= interdigitation_placenta.x, y= prev.mal.x))
+
+# Placental invasion x malignant transformation rate
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(x= placenta_invasiveness.x, y= mal.trans.x))
+
+# Interdigitation x malignant transformation rate
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(x= interdigitation_placenta.x, y= mal.trans.x))
+
+```
+
+Birth Potential Graphs
+```{r}
+# Birth potential x interdigitation
+megaset5 %>%
+  ggplot(.) +
+  geom_point(aes(x= interdigitation_placenta.x, y= birthpotent))
+
+# Maximum offspring output x placental invasion
+megaset5 %>%
+  ggplot(.) +
+  geom_point(aes(x= placenta_invasiveness.x, y= birthpotent))
+
+# Maximum offspring output x neoplasia prevalence
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(y= birthpotent, x= prev.neo.x))
+
+# Maximum offspring output x malignancy prevalence
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(y= birthpotent, x= prev.mal.x))
+
+# Maximum offspring output x malignant transformation rate
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(y= birthpotent, x= mal.trans.x))
+```
+
+Maximum Offspring Graphs
+```{r}
+# Maximum offspring output x interdigitation
+megaset5 %>%
+  ggplot(.) +
+  geom_point(aes(x= interdigitation_placenta.x, y= maxoffspring))
+
+# Maximum offspring output x placental invasion
+megaset5 %>%
+  ggplot(.) +
+  geom_point(aes(x= placenta_invasiveness.x, y= maxoffspring))
+
+# Maximum offspring output x neoplasia prevalence
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(y= maxoffspring, x= prev.neo.x))
+
+# Maximum offspring output x malignancy prevalence
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(y= maxoffspring, x= prev.mal.x))
+
+# Maximum offspring output x malignant transformation rate
+megaset5 %>%
+  ggplot(.)+
+  geom_point(aes(y= maxoffspring, x= mal.trans.x))
+```
+
+Placental Invasion x Cancer Correlation Computations
+```{r}
+# Placental Invasion x Malignant Transformation
+megaset5$invade.x <- as.numeric(megaset5$invade.x)
+megaset5$mal.trans.x <- as.numeric(megaset5$mal.trans.x)
+
+invmal <- lm(megaset5$invade.x ~ megaset5$mal.trans.x)
+summary(invmal)
+
+# Placental Invasion x Neoplasia Prevalence
+megaset5$prev.neo.x <- as.numeric(megaset5$prev.neo.x)
+
+invneo <- lm(megaset5$invade.x ~ megaset5$prev.neo.x)
+summary(invneo)
+
+# Placental Invasion x Malignancy Prevalence
+megaset5$prev.mal.x <- as.numeric(megaset5$prev.mal.x)
+
+invmalprev <- lm(megaset5$invade.x ~ megaset5$prev.mal.x)
+summary(invmalprev)
+
+```
+
+Interdigitation Correlation x Cancer Computations
+```{r}
+# Interdigitation x Malignant Transformation
+megaset5$digit.x <- as.numeric(megaset5$digit.x)
+
+digmal <- lm(megaset5$digit.x ~ megaset5$mal.trans.x)
+summary(digmal)
+
+# Interdigitation x Neoplasia Prevalence
+digneo <- lm(megaset5$digit.x ~ megaset5$prev.neo.x)
+summary(digneo)
+
+# Interdigitation x Malignancy Prevalence
+digmalprev <- lm(megaset5$digit.x ~ megaset5$prev.mal.x)
+summary(digmalprev)
+```
+
+Life History x Cancer Correlation Computations
+```{r}
+# Lifespan x Malignant Transformation
+longevdmal <- lm(megaset5$longevd.x ~ megaset5$mal.trans.x)
+summary(longevdmal)
+
+# Lifespan x Neoplasia Prevalence
+longevdneo <- lm(megaset5$longevd.x ~ megaset5$prev.neo.x)
+summary(longevdneo)
+
+# Lifespan x Malignancy Prevalence
+longevdmalprev <- lm(megaset5$longevd.x ~ megaset5$prev.mal.x)
+summary(longevdmalprev)
+
+
+
+
+# Birth Potential x Malignant Transformation
+birthpotmal <- lm(megaset5$birthpotent ~ megaset5$mal.trans.x)
+summary(birthpotmal)
+
+# Birth Potential x Neoplasia Prevalence
+birthpotneo <- lm(megaset5$birthpotent ~ megaset5$prev.neo.x)
+summary(birthpotneo)
+
+# Birth Potential x Malignancy Prevalence
+birthpotmalprev <- lm(megaset5$birthpotent ~ megaset5$prev.mal.x)
+summary(birthpotmalprev)
+
+
+
+
+# Max Offspring x Malignant Transformation
+maxoffmal <- lm(megaset5$maxoffspring ~ megaset5$mal.trans.x)
+summary(maxoffmal)
+
+# Max Offspring x Neoplasia Prevalence
+maxoffneo <- lm(megaset5$maxoffspring ~ megaset5$prev.neo.x)
+summary(maxoffneo)
+
+# Max Offspring x Malignancy Prevalence
+maxoffmalprev <- lm(megaset5$maxoffspring ~ megaset5$prev.mal.x)
+summary(maxoffmalprev)
+
+```
+
