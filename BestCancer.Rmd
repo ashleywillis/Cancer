@@ -16,6 +16,10 @@ library("janitor")
 library("hrbrthemes")
 library("psych")
 library("ggrepel")
+library("ggplot2")
+library("ggpubr")
+library("broom")
+library("AICcmodavg")
 ```
 
 Data
@@ -84,7 +88,7 @@ megaset <- merge(combo1, np2, by= "species")
 antimega <- anti_join(combo1, np2, by= "species")
 
 # Filter out missing values
-megaset1 <- megaset %>%
+combo2 <- combo1 %>%
   filter(!agefb==-999.00) %>%
   filter(!gestation==-999.00) %>%
   filter(!gestation==-999.00) %>%
@@ -92,60 +96,317 @@ megaset1 <- megaset %>%
   filter(!litterpyr==-999.00) %>%
   filter(!longev==-999.00) %>%
   filter(!sexmat==-999.00)
+# Only 53 species with complete data!
 
-# Only 18 species with complete data!
+
+# Life history + Cancer data
+lifecancer <- merge(lh2, np2, by = "species")
+lifecancer$tot.neo <- as.numeric(lifecancer$tot.neo)
+lifecancer$prev.neo <- as.numeric(lifecancer$prev.neo)
+lifecancer$tot.mal <- as.numeric(lifecancer$tot.mal)
+lifecancer$prev.mal <- as.numeric(lifecancer$prev.mal)
+lifecancer$mal.trans <- as.numeric(lifecancer$mal.trans)
+
+# Placentas + Cancer data
+placentacancer <- merge(pi3, np2, by = "species")
+placentacancer1$invade <- as.numeric(placentacancer1$invade)
+placentacancer1$digit <- as.numeric(placentacancer1$digit)
+placentacancer1$tot.neo <- as.numeric(placentacancer1$tot.neo)
+placentacancer1$prev.neo <- as.numeric(placentacancer1$prev.neo)
+placentacancer1$tot.mal <- as.numeric(placentacancer1$tot.mal)
+placentacancer1$prev.mal <- as.numeric(placentacancer1$prev.mal)
+placentacancer1$mal.trans <- as.numeric(placentacancer1$mal.trans)
+
+
 ```
 
 Computations
 ```{r}
 # Computing for births per lifetime:
 #   Lifespan - age at sexual maturation (assumes no post-reproductive period) = Reproductive lifespan
-megaset1.1 <- megaset1 %>%
+combo2.1 <- combo2 %>%
   mutate(longevd - sexmat)%>%
   rename(reprolife = "longevd - sexmat") 
 
 #   Gestation length + interbirth interval = Time per litter
-megaset2 <- megaset1.1 %>%
+combo2.2 <- combo2.1 %>%
   mutate(gestation + interv) %>%
   rename(timeprlit = "gestation + interv")
 
 #   Reproductive lifespan / time per litter = Birthing potential
-megaset3 <- megaset2 %>%
+combo2.3 <- combo2.2 %>%
   mutate(reprolife / timeprlit) %>%
   rename(birthpotent = "reprolife/timeprlit")
 
 # Computing for offspring output:
 #   Maximum births per lifetime * Avg litter size
-megaset4 <- megaset3 %>%
+combo2.4 <- combo2.3 %>%
   mutate(birthpotent * littersize) %>%
   rename(maxoffspring = "birthpotent * littersize")
 
 megaset5 <- merge(megaset4, megaset1, by= "species")
 
+placentacancer1 <- placentacancer[-c(132),] 
+
 ```
+
+Placental Invasion x Cancer ANOVAs
+```{r}
+# Malignant transformation as a function of placental invasion
+pmtanova <- aov(mal.trans ~ invade, data = placentacancer1)
+
+summary(pmtanova)
+
+# Malignancy prevalence as a function of placental invasion
+pmpanova <- aov(prev.mal ~ invade, data = placentacancer1)
+
+summary(pmpanova)
+
+# Neoplasia prevalence as a function of placental invasion
+pnpanova <- aov(prev.neo ~ invade, data = placentacancer1)
+
+summary(pnpanova)
+
+
+```
+
+Interdigitation x Cancer ANOVAs
+```{r}
+# Malignant transformation as a function of interdigitation
+imtanova <- aov(mal.trans ~ digit, data = placentacancer1)
+
+summary(imtanova)
+
+# Malignancy prevalence as a function of interdigitation
+impanova <- aov(prev.mal ~ digit, data = placentacancer1)
+
+summary(impanova)
+
+# Neoplasia prevalence as a function of interdigitation
+inpanova <- aov(prev.neo ~ digit, data = placentacancer1)
+
+summary(inpanova)
+```
+
+Invasion + Interdigitation ANOVAs (additive testing)
+```{r}
+# Malignant transformation as a function of invasion + interdigitation
+pimtanova <- aov(mal.trans ~ invade + digit, data = placentacancer1)
+
+summary(pimtanova)
+
+# Malignancy prevalence as a function of invasion + interdigitation
+pimpanova <- aov(prev.mal ~ invade + digit, data = placentacancer1)
+
+summary(pimpanova)
+
+# Neoplasia prevalence as a function of invasion + interdigitation
+pinpanova <- aov(prev.neo ~ invade + digit, data = placentacancer1)
+
+summary(pinpanova)
+```
+
+Invasion * Interdigitation ANOVAs (interaction testing)
+```{r}
+# Malignant transformation as a function of invasion * interdigitation
+pimtanova1 <- aov(mal.trans ~ invade * digit, data = placentacancer1)
+
+summary(pimtanova1)
+
+# Malignancy prevalence as a function of invasion * interdigitation
+pimpanova1 <- aov(prev.mal ~ invade * digit, data = placentacancer1)
+
+summary(pimpanova1)
+
+# Neoplasia prevalence as a function of invasion * interdigitation
+pinpanova1 <- aov(prev.neo ~ invade * digit, data = placentacancer1)
+
+summary(pinpanova1)
+```
+
+Invasion AICs
+```{r}
+# Malignant Transformation
+mtset <- list(pmtanova, pimtanova, pimtanova1)
+mtnames <- c("pmtanova", "pimtanova", "pimtanova1")
+
+aictab(mtset, modnames = mtnames)
+        #"pimtanova1",interaction model is the best fit.
+
+par(mfrow=c(2,2))
+plot(pimtanova1)
+par(mfrow=c(1,1))
+
+
+
+# Malignancy Prevalence
+mpset <- list(pmpanova, pimpanova, pimpanova1)
+mpnames <- c("pmpanova", "pimpanova", "pimpanova1")
+
+aictab(mpset, modnames = mpnames)
+      #"pimpanova", additive model is the best fit.
+
+par(mfrow=c(2,2))
+plot(pimpanova)
+par(mfrow=c(1,1))
+
+
+# Neoplasia Prevalence
+npset <- list(pnpanova, pinpanova, pinpanova1)
+npnames <- c("pnpanova", "pinpanova", "pinpanova1")
+
+aictab(npset, modnames = npnames)
+      #"pnpanova", solo model is the best fit
+
+par(mfrow=c(2,2))
+plot(pnpanova)
+par(mfrow=c(1,1))
+
+
+```
+
+Interdigitation AICs
+```{r}
+# Malignant Transformation
+mtsetd <- list(imtanova, pimtanova, pimtanova1)
+mtnamesd <- c("imtanova", "pimtanova", "pimtanova1")
+
+aictab(mtsetd, modnames = mtnamesd)
+      #"imtanova", solo model is the best fit, interactive a close 2nd
+
+par(mfrow=c(2,2))
+plot(imtanova)
+par(mfrow=c(1,1))
+
+par(mfrow=c(2,2))
+plot(pimtanova1)
+par(mfrow=c(1,1))
+
+
+
+# Malignancy Prevalence
+mpsetd <- list(impanova, pimpanova, pimpanova1)
+mpnamesd <- c("impanova", "pimpanova", "pimpanova1")
+
+aictab(mpsetd, modnames = mpnamesd)
+      #"impanova", solo model is the best fit
+
+par(mfrow=c(2,2))
+plot(impanova)
+par(mfrow=c(1,1))
+
+
+
+# Neoplasia Prevalence
+npsetd <- list(inpanova, pinpanova, pinpanova1)
+npnamesd <- c("inpanova", "pinpanova", "pinpanova1")
+
+aictab(npsetd, modnames = npnamesd)
+      #"inpanova", solo model is the best fit
+
+par(mfrow=c(2,2))
+plot(inpanova)
+par(mfrow=c(1,1))
+```
+
+Tukey's HSD: Invasion
+```{r}
+# Malignant Transformation
+tukey.pimtanova1 <-TukeyHSD(pimtanova1)
+tukey.pimtanova1
+    #Nothing statistically significant...
+
+t.pimtanova1 <- aov(mal.trans ~ invade:digit, data = placentacancer1)
+
+tplot.pimtanova1 <- TukeyHSD(t.pimtanova1)
+plot(tplot.pimtanova1, las= 1)
+
+
+
+
+#Malignancy Prevalence
+tukey.pimpanova <- TukeyHSD(pimpanova)
+tukey.pimpanova
+    #Statistically significant difference between epi & endo only
+
+t.pimpanova <- aov(prev.mal ~ invade:digit, data = placentacancer1)
+
+tplot.pimpanova <- TukeyHSD(t.pimpanova)
+plot(tplot.pimpanova, las= 1)
+
+
+
+
+#Neoplasia Prevalence
+tukey.pnpanova <- TukeyHSD(pnpanova)
+tukey.pnpanova
+    #Nothing statistically significant
+t.pnpanova <- aov(prev.neo ~ invade, data = placentacancer1)
+
+tplot.pnpanova <- TukeyHSD(t.pnpanova)
+plot(tplot.pnpanova, las= 1)
+
+plot(tukey.pnpanova)
+
+```
+
+Tukey's HSD: Interdigitation
+```{r}
+# Malignant Transformation
+tukey.imtanova <-TukeyHSD(imtanova)
+tukey.imtanova
+    # Statistical significance between Lab & Trab and Lab & Vill
+plot(tukey.imtanova)
+
+
+#Malignancy Prevalence
+tukey.impanova <- TukeyHSD(impanova)
+tukey.impanova
+    #Statistically significant difference between (large) Lab & Vill and Lab & Trab
+plot(tukey.impanova)
+
+#Neoplasia Prevalence
+tukey.inpanova <- TukeyHSD(inpanova)
+tukey.inpanova
+    #Nothing statistically significant
+plot(tukey.inpanova)
+```
+
+Invasion: Create New Data Frames with Groupwise Differences
+```{r}
+# Malignant Transformation
+mean.pimtanova1 <- placentacancer1 %>%
+  group_by(invade, digit) %>%
+  summarise(
+    mal.trans= mean(mal.trans)
+  )
+
+```
+
 
 Life history graphs
 ```{r}
 # Lifespan x Time per litter x Placental invasion
-megaset5 %>%
-  ggplot(.,aes(x=longevd.x, y=timeprlit, color= placenta_invasiveness.x))+
+combo2.4 %>%
+  ggplot(.,aes(x=longevd, y=timeprlit, color= invade))+
   geom_point()+
   geom_smooth(method = "lm", se= FALSE)+
   geom_label_repel(aes(label = species))
 
 
 # Lifespan x Time per litter x Interdigitation
-megaset5 %>%
-  ggplot(.,aes(x=longevd.x, y=timeprlit, color= interdigitation_placenta.x))+
+combo2.4 %>%
+  ggplot(.,aes(x=longevd, y=timeprlit, color= digit))+
   geom_point()+
   geom_smooth(method = "lm", se= FALSE)+
   geom_label_repel(aes(label = species))
 
 # Maximum birth potential x Placental Invasion
-megaset5 %>%
-  ggplot(., aes(y= birthpotent, x= placenta_invasiveness.x))+
-  geom_point()+
-  geom_label_repel(aes(label = species))
+combo2.4 %>%
+  ggplot(., aes(y= birthpotent, x= placenta_invasiveness))+
+  geom_boxplot()
+
+
 
 ```
 
@@ -153,88 +414,53 @@ Placentas & Cancer Graphs
 ```{r}
 
 # Placental invasion x neoplasia prevalence
-megaset5 %>%
-  ggplot(., aes(x= placenta_invasiveness.x, y= prev.neo.x))+
-  geom_point()+
-  geom_label_repel(aes(label = species))
-
-megaset5 %>%
-  ggplot(., aes(x= invade, y= prev.neo.x))+
-  geom_point()+
-  geom_label_repel(aes(label = species))
-
+placentacancer1 %>%
+  ggplot(.)+
+  geom_boxplot(aes(x = placenta_invasiveness, y = prev.neo))
 
 # Interdigitation x malignancy prevalence
-megaset5 %>%
+placentacancer1 %>%
   ggplot(.)+
-  geom_point(aes(x= interdigitation_placenta.x, y= prev.mal.x))
+  geom_boxplot(aes(x= interdigitation_placenta, y= prev.mal))
 
 # Placental invasion x malignant transformation rate
-megaset5 %>%
+placentacancer1 %>%
   ggplot(.)+
-  geom_point(aes(x= placenta_invasiveness.x, y= mal.trans.x))
+  geom_boxplot(aes(x= placenta_invasiveness, y= mal.trans))
 
 # Interdigitation x malignant transformation rate
-megaset5 %>%
+placentacancer1 %>%
   ggplot(.)+
-  geom_point(aes(x= interdigitation_placenta.x, y= mal.trans.x))
+  geom_boxplot(aes(x= interdigitation_placenta, y= mal.trans))
 
 ```
 
 Birth Potential Graphs
 ```{r}
 # Birth potential x interdigitation
-megaset5 %>%
+combo2.4 %>%
   ggplot(.) +
-  geom_point(aes(x= interdigitation_placenta.x, y= birthpotent))
+  geom_boxplot(aes(x= interdigitation_placenta, y= birthpotent))
 
 # Maximum offspring output x placental invasion
 megaset5 %>%
   ggplot(.) +
-  geom_point(aes(x= placenta_invasiveness.x, y= birthpotent))
+  geom_boxplot(aes(x= placenta_invasiveness.x, y= birthpotent))
 
 # Maximum offspring output x neoplasia prevalence
 megaset5 %>%
   ggplot(.)+
-  geom_point(aes(y= birthpotent, x= prev.neo.x))
+  geom_point(aes(x= birthpotent, y= prev.neo.x))
 
 # Maximum offspring output x malignancy prevalence
 megaset5 %>%
   ggplot(.)+
-  geom_point(aes(y= birthpotent, x= prev.mal.x))
+  geom_point(aes(x= birthpotent, y= prev.mal.x))
 
 # Maximum offspring output x malignant transformation rate
 megaset5 %>%
   ggplot(.)+
-  geom_point(aes(y= birthpotent, x= mal.trans.x))
-```
-
-Maximum Offspring Graphs
-```{r}
-# Maximum offspring output x interdigitation
-megaset5 %>%
-  ggplot(.) +
-  geom_point(aes(x= interdigitation_placenta.x, y= maxoffspring))
-
-# Maximum offspring output x placental invasion
-megaset5 %>%
-  ggplot(.) +
-  geom_point(aes(x= placenta_invasiveness.x, y= maxoffspring))
-
-# Maximum offspring output x neoplasia prevalence
-megaset5 %>%
-  ggplot(.)+
-  geom_point(aes(y= maxoffspring, x= prev.neo.x))
-
-# Maximum offspring output x malignancy prevalence
-megaset5 %>%
-  ggplot(.)+
-  geom_point(aes(y= maxoffspring, x= prev.mal.x))
-
-# Maximum offspring output x malignant transformation rate
-megaset5 %>%
-  ggplot(.)+
-  geom_point(aes(y= maxoffspring, x= mal.trans.x))
+  geom_point(aes(x= birthpotent, y= mal.trans.x))
 ```
 
 Placental Invasion x Cancer Correlation Computations
@@ -246,17 +472,29 @@ megaset5$mal.trans.x <- as.numeric(megaset5$mal.trans.x)
 invmal <- lm(megaset5$invade.x ~ megaset5$mal.trans.x)
 summary(invmal)
 
+    # *USE THIS ONE*
+invmal1 <- lm(placentacancer1$invade ~ placentacancer1$mal.trans)
+summary(invmal1)
+
 # Placental Invasion x Neoplasia Prevalence
 megaset5$prev.neo.x <- as.numeric(megaset5$prev.neo.x)
 
 invneo <- lm(megaset5$invade.x ~ megaset5$prev.neo.x)
 summary(invneo)
 
+    # *USE THIS ONE*
+invneo1 <- lm(placentacancer1$invade ~ placentacancer1$prev.neo)
+summary(invneo1)
+
 # Placental Invasion x Malignancy Prevalence
 megaset5$prev.mal.x <- as.numeric(megaset5$prev.mal.x)
 
 invmalprev <- lm(megaset5$invade.x ~ megaset5$prev.mal.x)
 summary(invmalprev)
+
+      # *USE THIS ONE*
+invmalprev1 <- lm(placentacancer1$invade ~ placentacancer1$prev.mal)
+summary(invmalprev1)
 
 ```
 
@@ -268,13 +506,26 @@ megaset5$digit.x <- as.numeric(megaset5$digit.x)
 digmal <- lm(megaset5$digit.x ~ megaset5$mal.trans.x)
 summary(digmal)
 
+  # *USE THIS ONE*
+digmal1 <- lm(placentacancer1$digit ~ placentacancer1$mal.trans)
+summary(digmal1)
+
 # Interdigitation x Neoplasia Prevalence
 digneo <- lm(megaset5$digit.x ~ megaset5$prev.neo.x)
 summary(digneo)
 
+  # *USE THIS ONE*
+digneo1 <- lm(placentacancer1$digit ~ placentacancer1$prev.neo)
+summary(digneo1)
+
 # Interdigitation x Malignancy Prevalence
 digmalprev <- lm(megaset5$digit.x ~ megaset5$prev.mal.x)
 summary(digmalprev)
+
+  # *USE THIS ONE*
+digmalprev1 <- lm(placentacancer1$digit ~ placentacancer1$prev.mal)
+summary(digmalprev1)
+
 ```
 
 Life History x Cancer Correlation Computations
@@ -283,13 +534,25 @@ Life History x Cancer Correlation Computations
 longevdmal <- lm(megaset5$longevd.x ~ megaset5$mal.trans.x)
 summary(longevdmal)
 
+  # *USE THIS ONE*
+longevdmal1 <- lm(lifecancer$longevd ~ lifecancer$mal.trans)
+summary(longevdmal1)
+
 # Lifespan x Neoplasia Prevalence
 longevdneo <- lm(megaset5$longevd.x ~ megaset5$prev.neo.x)
 summary(longevdneo)
 
+  # *USE THIS ONE*
+longevdneo1 <- lm(lifecancer$longevd ~ lifecancer$prev.neo)
+summary(longevdneo1)
+
 # Lifespan x Malignancy Prevalence
 longevdmalprev <- lm(megaset5$longevd.x ~ megaset5$prev.mal.x)
 summary(longevdmalprev)
+
+   # *USE THIS ONE*
+longevdmalprev1 <- lm(lifecancer$longevd ~ lifecancer$prev.mal)
+summary(longevdmalprev1)
 
 
 
