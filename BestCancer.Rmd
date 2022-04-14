@@ -109,13 +109,6 @@ lifecancer$mal.trans <- as.numeric(lifecancer$mal.trans)
 
 # Placentas + Cancer data
 placentacancer <- merge(pi3, np2, by = "species")
-placentacancer1$invade <- as.numeric(placentacancer1$invade)
-placentacancer1$digit <- as.numeric(placentacancer1$digit)
-placentacancer1$tot.neo <- as.numeric(placentacancer1$tot.neo)
-placentacancer1$prev.neo <- as.numeric(placentacancer1$prev.neo)
-placentacancer1$tot.mal <- as.numeric(placentacancer1$tot.mal)
-placentacancer1$prev.mal <- as.numeric(placentacancer1$prev.mal)
-placentacancer1$mal.trans <- as.numeric(placentacancer1$mal.trans)
 
 
 ```
@@ -144,9 +137,15 @@ combo2.4 <- combo2.3 %>%
   mutate(birthpotent * littersize) %>%
   rename(maxoffspring = "birthpotent * littersize")
 
-megaset5 <- merge(megaset4, megaset1, by= "species")
 
 placentacancer1 <- placentacancer[-c(132),] 
+placentacancer1$invade <- as.numeric(placentacancer1$invade)
+placentacancer1$digit <- as.numeric(placentacancer1$digit)
+placentacancer1$tot.neo <- as.numeric(placentacancer1$tot.neo)
+placentacancer1$prev.neo <- as.numeric(placentacancer1$prev.neo)
+placentacancer1$tot.mal <- as.numeric(placentacancer1$tot.mal)
+placentacancer1$prev.mal <- as.numeric(placentacancer1$prev.mal)
+placentacancer1$mal.trans <- as.numeric(placentacancer1$mal.trans)
 
 ```
 
@@ -313,7 +312,7 @@ Tukey's HSD: Invasion
 ```{r}
 # Malignant Transformation
 tukey.pimtanova1 <-TukeyHSD(pimtanova1)
-tukey.pimtanova1
+tukey.pimtanova1 
     #Nothing statistically significant...
 
 t.pimtanova1 <- aov(mal.trans ~ invade:digit, data = placentacancer1)
@@ -443,22 +442,22 @@ combo2.4 %>%
   geom_boxplot(aes(x= interdigitation_placenta, y= birthpotent))
 
 # Maximum offspring output x placental invasion
-megaset5 %>%
+combo2.4 %>%
   ggplot(.) +
   geom_boxplot(aes(x= placenta_invasiveness.x, y= birthpotent))
 
 # Maximum offspring output x neoplasia prevalence
-megaset5 %>%
+combo2.4 %>%
   ggplot(.)+
   geom_point(aes(x= birthpotent, y= prev.neo.x))
 
 # Maximum offspring output x malignancy prevalence
-megaset5 %>%
+combo2.4 %>%
   ggplot(.)+
   geom_point(aes(x= birthpotent, y= prev.mal.x))
 
 # Maximum offspring output x malignant transformation rate
-megaset5 %>%
+combo2.4 %>%
   ggplot(.)+
   geom_point(aes(x= birthpotent, y= mal.trans.x))
 ```
@@ -466,33 +465,17 @@ megaset5 %>%
 Placental Invasion x Cancer Correlation Computations
 ```{r}
 # Placental Invasion x Malignant Transformation
-megaset5$invade.x <- as.numeric(megaset5$invade.x)
-megaset5$mal.trans.x <- as.numeric(megaset5$mal.trans.x)
 
-invmal <- lm(megaset5$invade.x ~ megaset5$mal.trans.x)
-summary(invmal)
-
-    # *USE THIS ONE*
 invmal1 <- lm(placentacancer1$invade ~ placentacancer1$mal.trans)
 summary(invmal1)
 
 # Placental Invasion x Neoplasia Prevalence
-megaset5$prev.neo.x <- as.numeric(megaset5$prev.neo.x)
 
-invneo <- lm(megaset5$invade.x ~ megaset5$prev.neo.x)
-summary(invneo)
-
-    # *USE THIS ONE*
 invneo1 <- lm(placentacancer1$invade ~ placentacancer1$prev.neo)
 summary(invneo1)
 
 # Placental Invasion x Malignancy Prevalence
-megaset5$prev.mal.x <- as.numeric(megaset5$prev.mal.x)
 
-invmalprev <- lm(megaset5$invade.x ~ megaset5$prev.mal.x)
-summary(invmalprev)
-
-      # *USE THIS ONE*
 invmalprev1 <- lm(placentacancer1$invade ~ placentacancer1$prev.mal)
 summary(invmalprev1)
 
@@ -501,28 +484,17 @@ summary(invmalprev1)
 Interdigitation Correlation x Cancer Computations
 ```{r}
 # Interdigitation x Malignant Transformation
-megaset5$digit.x <- as.numeric(megaset5$digit.x)
 
-digmal <- lm(megaset5$digit.x ~ megaset5$mal.trans.x)
-summary(digmal)
-
-  # *USE THIS ONE*
 digmal1 <- lm(placentacancer1$digit ~ placentacancer1$mal.trans)
 summary(digmal1)
 
 # Interdigitation x Neoplasia Prevalence
-digneo <- lm(megaset5$digit.x ~ megaset5$prev.neo.x)
-summary(digneo)
 
-  # *USE THIS ONE*
 digneo1 <- lm(placentacancer1$digit ~ placentacancer1$prev.neo)
 summary(digneo1)
 
 # Interdigitation x Malignancy Prevalence
-digmalprev <- lm(megaset5$digit.x ~ megaset5$prev.mal.x)
-summary(digmalprev)
 
-  # *USE THIS ONE*
 digmalprev1 <- lm(placentacancer1$digit ~ placentacancer1$prev.mal)
 summary(digmalprev1)
 
@@ -531,26 +503,17 @@ summary(digmalprev1)
 Life History x Cancer Correlation Computations
 ```{r}
 # Lifespan x Malignant Transformation
-longevdmal <- lm(megaset5$longevd.x ~ megaset5$mal.trans.x)
-summary(longevdmal)
 
-  # *USE THIS ONE*
 longevdmal1 <- lm(lifecancer$longevd ~ lifecancer$mal.trans)
 summary(longevdmal1)
 
 # Lifespan x Neoplasia Prevalence
-longevdneo <- lm(megaset5$longevd.x ~ megaset5$prev.neo.x)
-summary(longevdneo)
 
-  # *USE THIS ONE*
 longevdneo1 <- lm(lifecancer$longevd ~ lifecancer$prev.neo)
 summary(longevdneo1)
 
 # Lifespan x Malignancy Prevalence
-longevdmalprev <- lm(megaset5$longevd.x ~ megaset5$prev.mal.x)
-summary(longevdmalprev)
 
-   # *USE THIS ONE*
 longevdmalprev1 <- lm(lifecancer$longevd ~ lifecancer$prev.mal)
 summary(longevdmalprev1)
 
@@ -558,31 +521,31 @@ summary(longevdmalprev1)
 
 
 # Birth Potential x Malignant Transformation
-birthpotmal <- lm(megaset5$birthpotent ~ megaset5$mal.trans.x)
-summary(birthpotmal)
+#birthpotmal <- lm(megaset5$birthpotent ~ megaset5$mal.trans.x)
+#summary(birthpotmal)
 
 # Birth Potential x Neoplasia Prevalence
-birthpotneo <- lm(megaset5$birthpotent ~ megaset5$prev.neo.x)
-summary(birthpotneo)
+#birthpotneo <- lm(megaset5$birthpotent ~ megaset5$prev.neo.x)
+#summary(birthpotneo)
 
 # Birth Potential x Malignancy Prevalence
-birthpotmalprev <- lm(megaset5$birthpotent ~ megaset5$prev.mal.x)
-summary(birthpotmalprev)
+#birthpotmalprev <- lm(megaset5$birthpotent ~ megaset5$prev.mal.x)
+#summary(birthpotmalprev)
 
 
 
 
 # Max Offspring x Malignant Transformation
-maxoffmal <- lm(megaset5$maxoffspring ~ megaset5$mal.trans.x)
-summary(maxoffmal)
+#maxoffmal <- lm(megaset5$maxoffspring ~ megaset5$mal.trans.x)
+#summary(maxoffmal)
 
 # Max Offspring x Neoplasia Prevalence
-maxoffneo <- lm(megaset5$maxoffspring ~ megaset5$prev.neo.x)
-summary(maxoffneo)
+#maxoffneo <- lm(megaset5$maxoffspring ~ megaset5$prev.neo.x)
+#summary(maxoffneo)
 
 # Max Offspring x Malignancy Prevalence
-maxoffmalprev <- lm(megaset5$maxoffspring ~ megaset5$prev.mal.x)
-summary(maxoffmalprev)
+#maxoffmalprev <- lm(megaset5$maxoffspring ~ megaset5$prev.mal.x)
+#summary(maxoffmalprev)
 
 ```
 
