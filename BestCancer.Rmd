@@ -147,6 +147,8 @@ placentacancer1$tot.mal <- as.numeric(placentacancer1$tot.mal)
 placentacancer1$prev.mal <- as.numeric(placentacancer1$prev.mal)
 placentacancer1$mal.trans <- as.numeric(placentacancer1$mal.trans)
 
+
+megaset5 <- merge(combo2.4, placentacancer1, by = "species")
 ```
 
 Placental Invasion x Cancer ANOVAs
@@ -308,79 +310,9 @@ plot(inpanova)
 par(mfrow=c(1,1))
 ```
 
-Tukey's HSD: Invasion
-```{r}
-# Malignant Transformation
-tukey.pimtanova1 <-TukeyHSD(pimtanova1)
-tukey.pimtanova1 
-    #Nothing statistically significant...
-
-t.pimtanova1 <- aov(mal.trans ~ invade:digit, data = placentacancer1)
-
-tplot.pimtanova1 <- TukeyHSD(t.pimtanova1)
-plot(tplot.pimtanova1, las= 1)
 
 
 
-
-#Malignancy Prevalence
-tukey.pimpanova <- TukeyHSD(pimpanova)
-tukey.pimpanova
-    #Statistically significant difference between epi & endo only
-
-t.pimpanova <- aov(prev.mal ~ invade:digit, data = placentacancer1)
-
-tplot.pimpanova <- TukeyHSD(t.pimpanova)
-plot(tplot.pimpanova, las= 1)
-
-
-
-
-#Neoplasia Prevalence
-tukey.pnpanova <- TukeyHSD(pnpanova)
-tukey.pnpanova
-    #Nothing statistically significant
-t.pnpanova <- aov(prev.neo ~ invade, data = placentacancer1)
-
-tplot.pnpanova <- TukeyHSD(t.pnpanova)
-plot(tplot.pnpanova, las= 1)
-
-plot(tukey.pnpanova)
-
-```
-
-Tukey's HSD: Interdigitation
-```{r}
-# Malignant Transformation
-tukey.imtanova <-TukeyHSD(imtanova)
-tukey.imtanova
-    # Statistical significance between Lab & Trab and Lab & Vill
-plot(tukey.imtanova)
-
-
-#Malignancy Prevalence
-tukey.impanova <- TukeyHSD(impanova)
-tukey.impanova
-    #Statistically significant difference between (large) Lab & Vill and Lab & Trab
-plot(tukey.impanova)
-
-#Neoplasia Prevalence
-tukey.inpanova <- TukeyHSD(inpanova)
-tukey.inpanova
-    #Nothing statistically significant
-plot(tukey.inpanova)
-```
-
-Invasion: Create New Data Frames with Groupwise Differences
-```{r}
-# Malignant Transformation
-mean.pimtanova1 <- placentacancer1 %>%
-  group_by(invade, digit) %>%
-  summarise(
-    mal.trans= mean(mal.trans)
-  )
-
-```
 
 
 Life history graphs
@@ -521,31 +453,31 @@ summary(longevdmalprev1)
 
 
 # Birth Potential x Malignant Transformation
-#birthpotmal <- lm(megaset5$birthpotent ~ megaset5$mal.trans.x)
-#summary(birthpotmal)
+birthpotmal <- lm(megaset5$birthpotent ~ megaset5$mal.trans)
+summary(birthpotmal)
 
 # Birth Potential x Neoplasia Prevalence
-#birthpotneo <- lm(megaset5$birthpotent ~ megaset5$prev.neo.x)
-#summary(birthpotneo)
+birthpotneo <- lm(megaset5$birthpotent ~ megaset5$prev.neo)
+summary(birthpotneo)
 
 # Birth Potential x Malignancy Prevalence
-#birthpotmalprev <- lm(megaset5$birthpotent ~ megaset5$prev.mal.x)
-#summary(birthpotmalprev)
+birthpotmalprev <- lm(megaset5$birthpotent ~ megaset5$prev.mal)
+summary(birthpotmalprev)
 
 
 
 
 # Max Offspring x Malignant Transformation
-#maxoffmal <- lm(megaset5$maxoffspring ~ megaset5$mal.trans.x)
-#summary(maxoffmal)
+maxoffmal <- lm(megaset5$maxoffspring ~ megaset5$mal.trans)
+summary(maxoffmal)
 
 # Max Offspring x Neoplasia Prevalence
-#maxoffneo <- lm(megaset5$maxoffspring ~ megaset5$prev.neo.x)
-#summary(maxoffneo)
+maxoffneo <- lm(megaset5$maxoffspring ~ megaset5$prev.neo)
+summary(maxoffneo)
 
 # Max Offspring x Malignancy Prevalence
-#maxoffmalprev <- lm(megaset5$maxoffspring ~ megaset5$prev.mal.x)
-#summary(maxoffmalprev)
+maxoffmalprev <- lm(megaset5$maxoffspring ~ megaset5$prev.mal)
+summary(maxoffmalprev)
 
 ```
 
