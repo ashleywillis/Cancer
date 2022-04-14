@@ -364,6 +364,9 @@ placentacancer1 %>%
   ggplot(.)+
   geom_boxplot(aes(x= interdigitation_placenta, y= mal.trans))
 
+
+
+
 ```
 
 Birth Potential Graphs
@@ -379,17 +382,17 @@ combo2.4 %>%
   geom_boxplot(aes(x= placenta_invasiveness, y= birthpotent))
 
 # Maximum offspring output x neoplasia prevalence
-combo2.4 %>%
+megaset5 %>%
   ggplot(.)+
   geom_point(aes(x= birthpotent, y= prev.neo))
 
 # Maximum offspring output x malignancy prevalence
-combo2.4 %>%
+megaset5 %>%
   ggplot(.)+
   geom_point(aes(x= birthpotent, y= prev.mal))
 
 # Maximum offspring output x malignant transformation rate
-combo2.4 %>%
+megaset5 %>%
   ggplot(.)+
   geom_point(aes(x= birthpotent, y= mal.trans))
 ```
