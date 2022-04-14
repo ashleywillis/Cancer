@@ -376,22 +376,22 @@ combo2.4 %>%
 # Maximum offspring output x placental invasion
 combo2.4 %>%
   ggplot(.) +
-  geom_boxplot(aes(x= placenta_invasiveness.x, y= birthpotent))
+  geom_boxplot(aes(x= placenta_invasiveness, y= birthpotent))
 
 # Maximum offspring output x neoplasia prevalence
 combo2.4 %>%
   ggplot(.)+
-  geom_point(aes(x= birthpotent, y= prev.neo.x))
+  geom_point(aes(x= birthpotent, y= prev.neo))
 
 # Maximum offspring output x malignancy prevalence
 combo2.4 %>%
   ggplot(.)+
-  geom_point(aes(x= birthpotent, y= prev.mal.x))
+  geom_point(aes(x= birthpotent, y= prev.mal))
 
 # Maximum offspring output x malignant transformation rate
 combo2.4 %>%
   ggplot(.)+
-  geom_point(aes(x= birthpotent, y= mal.trans.x))
+  geom_point(aes(x= birthpotent, y= mal.trans))
 ```
 
 Placental Invasion x Cancer Correlation Computations
