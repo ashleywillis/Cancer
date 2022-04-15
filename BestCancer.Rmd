@@ -310,10 +310,42 @@ plot(inpanova)
 par(mfrow=c(1,1))
 ```
 
+Birth Potential x Cancer ANOVAs (nothing significant)
+```{r}
+# Malignant transformation as a function of birth potential
+bpmtanova <- aov(mal.trans ~ birthpotent, data = megaset5)
 
+summary(bpmtanova)
 
+# Malignancy prevalence as a function of birth potential
+bpmpanova <- aov(prev.mal ~ birthpotent, data = megaset5)
 
+summary(bpmpanova)
 
+# Neoplasia prevalence as a function of birth potential
+bpnpanova <- aov(prev.neo ~ birthpotent, data = megaset5)
+
+summary(bpnpanova)
+
+```
+
+Maximum Offspring x Cancer ANOVAs (nothing significant)
+```{r}
+# Malignant transformation as a function of maximum offspring
+momtanova <- aov(mal.trans ~ maxoffspring, data = megaset5)
+
+summary(momtanova)
+
+# Malignancy prevalence as a function of maximum offspring
+mompanova <- aov(prev.mal ~ maxoffspring, data = megaset5)
+
+summary(mompanova)
+
+# Neoplasia prevalence as a function of maximum offspring
+monpanova <- aov(prev.neo ~ maxoffspring, data = megaset5)
+
+summary(monpanova)
+```
 
 Life history graphs
 ```{r}
