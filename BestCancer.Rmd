@@ -1,5 +1,5 @@
 ---
-title: "CancerPlacenta"
+title: "BestCancer"
 author: "Ashley"
 date: '2022-04-11'
 output: html_document
@@ -308,6 +308,40 @@ aictab(npsetd, modnames = npnamesd)
 par(mfrow=c(2,2))
 plot(inpanova)
 par(mfrow=c(1,1))
+```
+
+
+Tukey's HSD 
+```{r}
+# Malignant Transfromation as a function of the interaction of Placental Invasion & Interdigitation
+tukey.pimt <- TukeyHSD(pimtanova1)
+plot(tukey.pimt)
+
+# Malignant Transformation as a function of Placental Interdigitation
+tukey.imt <- TukeyHSD(imtanova)
+plot(tukey.imt)
+
+
+
+
+#Malignancy Prevalence as a function of added Invasion + Interdigitation
+tukey.pimp <- TukeyHSD(pimpanova)
+plot(tukey.pimp)
+
+# Malignancy Prevalence as a function of Interdigitation
+tukey.imp <- TukeyHSD(impanova)
+plot(tukey.imp)
+
+
+
+
+# Neoplasia Prevalence as a function of Placental Invasion
+tukey.pnp <- TukeyHSD(pnpanova)
+plot(tukey.pnp)
+
+# Neoplasia Prevalence as a function of Interdigitation
+tukey.inp <- TukeyHSD(inpanova)
+plot(tukey.inp)
 ```
 
 Birth Potential x Cancer ANOVAs (nothing significant)
