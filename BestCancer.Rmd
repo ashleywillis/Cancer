@@ -20,6 +20,13 @@ library("ggplot2")
 library("ggpubr")
 library("broom")
 library("AICcmodavg")
+library("ctv") 
+library("ape")
+library("phytools")
+library("phangorn")
+library("geiger")
+library("nlme")
+
 ```
 
 Data
@@ -27,6 +34,14 @@ Data
 lh <- read_csv("Pantheria_og.csv")
 pi <- read.csv("placenta__more_interdigitation.csv")
 np <- read.csv("neoplasiaPrevalence.min10.2022-04-01T19_13.csv")
+
+phylogeny <- read.newick("mammals_species.nwk")
+plot(phylogeny)
+
+phylo <- read.newick("species1.nwk")
+
+tree <- ape::read.nexus("mammals_phylo.txt")
+plot(tree)
 ```
 
 Cleaning Data
@@ -110,6 +125,9 @@ lifecancer$mal.trans <- as.numeric(lifecancer$mal.trans)
 # Placentas + Cancer data
 placentacancer <- merge(pi3, np2, by = "species")
 
+placentacancer2 <- placentacancer1 %>%
+  mutate_all(funs(str_replace(.," ","_")))
+
 
 ```
 
@@ -149,6 +167,8 @@ placentacancer1$mal.trans <- as.numeric(placentacancer1$mal.trans)
 
 
 megaset5 <- merge(combo2.4, placentacancer1, by = "species")
+
+
 ```
 
 Placental Invasion x Cancer ANOVAs
@@ -309,7 +329,6 @@ par(mfrow=c(2,2))
 plot(inpanova)
 par(mfrow=c(1,1))
 ```
-
 
 Tukey's HSD 
 ```{r}
@@ -547,6 +566,21 @@ summary(maxoffneo)
 # Max Offspring x Malignancy Prevalence
 maxoffmalprev <- lm(megaset5$maxoffspring ~ megaset5$prev.mal)
 summary(maxoffmalprev)
+
+```
+
+Phylogeny
+```{r}
+
+malig <- placentacancer2 [, "mal.trans"]
+interdig <- placentacancer2 [, "digit"]
+
+names(malig) <- names(interdig) <- rownames(placentacancer2)
+
+mPic <- pic(malig, tree)
+
+name.check(tree, placentacancer2)
+
 
 ```
 
