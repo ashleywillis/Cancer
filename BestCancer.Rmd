@@ -26,7 +26,7 @@ library("phytools")
 library("phangorn")
 library("geiger")
 library("nlme")
-
+library("ggtree")
 ```
 
 Data
@@ -34,14 +34,9 @@ Data
 lh <- read_csv("Pantheria_og.csv")
 pi <- read.csv("placenta__more_interdigitation.csv")
 np <- read.csv("neoplasiaPrevalence.min10.2022-04-01T19_13.csv")
-
-phylogeny <- read.newick("mammals_species.nwk")
-plot(phylogeny)
-
-phylo <- read.newick("species1.nwk")
-
 tree <- ape::read.nexus("mammals_phylo.txt")
-plot(tree)
+mammals <- read.newick("mammals_species.nwk")
+
 ```
 
 Cleaning Data
@@ -125,11 +120,65 @@ lifecancer$mal.trans <- as.numeric(lifecancer$mal.trans)
 # Placentas + Cancer data
 placentacancer <- merge(pi3, np2, by = "species")
 
+
+placentacancer1 <- placentacancer[-c(132),] 
+placentacancer1$invade <- as.numeric(placentacancer1$invade)
+placentacancer1$digit <- as.numeric(placentacancer1$digit)
+placentacancer1$tot.neo <- as.numeric(placentacancer1$tot.neo)
+placentacancer1$prev.neo <- as.numeric(placentacancer1$prev.neo)
+placentacancer1$tot.mal <- as.numeric(placentacancer1$tot.mal)
+placentacancer1$prev.mal <- as.numeric(placentacancer1$prev.mal)
+placentacancer1$mal.trans <- as.numeric(placentacancer1$mal.trans)
+
 placentacancer2 <- placentacancer1 %>%
   mutate_all(funs(str_replace(.," ","_")))
 
+# Phylo
+species_placcancer <- placentacancer2 %>%
+  dplyr::select("species")
 
+mammal_phy <- ggtree(tree$mammalST_bestDates)
+
+mammal_phy <- as.phylo(mammal_phy)
+
+species_phylo <- as.data.frame(mammal_phy$tip.label) %>%
+  rename("species"="mammal_phy$tip.label")
+
+species_kept <- merge(species_phylo, species_placcancer, by.x = "species", by.y = "species")
+
+species_kept_v <- as.vector(species_kept$species)
+
+small_mammal_k <- keep.tip(mammal_phy,species_kept_v)
+
+write.csv(species_kept_v,"species_kept_v.csv", row.names = FALSE, col.names = TRUE)
+species_kept_p <- read.csv("species_kept_v.csv")
+
+placenta_num <- merge(species_kept_p, placentacancer2, by.x = "x", by.y = "species") %>%
+  rename("species"=x)
+
+# Mammals
+mammals_list <- as.phylo(mammals)
+
+specmammal <- as.data.frame(mammals_list$tip.label)%>%
+  rename("species"="mammals_list$tip.label")
+
+specieslist <- merge(specmammal, species_placcancer, by.x = "species", by.y = "species")
+
+specieslist_v <- as.vector(specieslist$species)
+
+specieslist_k <- keep.tip(mammals, specieslist_v)
+
+write.csv(specieslist_v, "specieslist_v.csv", row.names = FALSE, col.names = TRUE)
+
+specieskept <- read.csv("specieslist_v.csv")
+
+mammallist <- merge(specieskept, placentacancer2, by.x = "x", by.y = "species")%>%
+  rename("species"=x)
+
+mammallist1 <- mammallist
+mammallist1[is.na(mammallist1)] <- 0
 ```
+
 
 Computations
 ```{r}
@@ -155,15 +204,6 @@ combo2.4 <- combo2.3 %>%
   mutate(birthpotent * littersize) %>%
   rename(maxoffspring = "birthpotent * littersize")
 
-
-placentacancer1 <- placentacancer[-c(132),] 
-placentacancer1$invade <- as.numeric(placentacancer1$invade)
-placentacancer1$digit <- as.numeric(placentacancer1$digit)
-placentacancer1$tot.neo <- as.numeric(placentacancer1$tot.neo)
-placentacancer1$prev.neo <- as.numeric(placentacancer1$prev.neo)
-placentacancer1$tot.mal <- as.numeric(placentacancer1$tot.mal)
-placentacancer1$prev.mal <- as.numeric(placentacancer1$prev.mal)
-placentacancer1$mal.trans <- as.numeric(placentacancer1$mal.trans)
 
 
 megaset5 <- merge(combo2.4, placentacancer1, by = "species")
@@ -333,34 +373,34 @@ par(mfrow=c(1,1))
 Tukey's HSD 
 ```{r}
 # Malignant Transfromation as a function of the interaction of Placental Invasion & Interdigitation
-tukey.pimt <- TukeyHSD(pimtanova1)
-plot(tukey.pimt)
+#tukey.pimt <- TukeyHSD(pimtanova1)
+#plot(tukey.pimts)
 
 # Malignant Transformation as a function of Placental Interdigitation
-tukey.imt <- TukeyHSD(imtanova)
-plot(tukey.imt)
+#tukey.imt <- TukeyHSD(imtanova)
+#plot(tukey.imt)
 
 
 
 
 #Malignancy Prevalence as a function of added Invasion + Interdigitation
-tukey.pimp <- TukeyHSD(pimpanova)
-plot(tukey.pimp)
+#tukey.pimp <- TukeyHSD(pimpanova)
+#plot(tukey.pimp)
 
 # Malignancy Prevalence as a function of Interdigitation
-tukey.imp <- TukeyHSD(impanova)
-plot(tukey.imp)
+#tukey.imp <- TukeyHSD(impanova)
+#plot(tukey.imp)
 
 
 
 
 # Neoplasia Prevalence as a function of Placental Invasion
-tukey.pnp <- TukeyHSD(pnpanova)
-plot(tukey.pnp)
+#tukey.pnp <- TukeyHSD(pnpanova)
+#plot(tukey.pnp)
 
 # Neoplasia Prevalence as a function of Interdigitation
-tukey.inp <- TukeyHSD(inpanova)
-plot(tukey.inp)
+#tukey.inp <- TukeyHSD(inpanova)
+#plot(tukey.inp)
 ```
 
 Birth Potential x Cancer ANOVAs (nothing significant)
@@ -571,16 +611,23 @@ summary(maxoffmalprev)
 
 Phylogeny
 ```{r}
+malig <- mammallist1[, "mal.trans"]
+interdig <- mammallist1[, "digit"]
 
-malig <- placentacancer2 [, "mal.trans"]
-interdig <- placentacancer2 [, "digit"]
+malig1 <- as.numeric(malig)
+interdig1 <- as.numeric(interdig)
 
-names(malig) <- names(interdig) <- rownames(placentacancer2)
+pgls_interdig <- gls(malig1 ~ interdig1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_interdig)
 
-mPic <- pic(malig, tree)
+coef(pgls_interdig)
 
-name.check(tree, placentacancer2)
+plot(malig1 ~ interdig1)
+abline(a = coef(pgls_interdig)[1], b = coef(pgls_interdig)[2])
 
-
-```
+# w/ discrete predictor
+pglsModel2 <- gls(malig1 ~ interdig1, correlation = corBrownian(phy = mammals_list),
+    data = mammallist, method = "ML")
+anova(pglsModel2)
+coef(pglsModel2)
 
