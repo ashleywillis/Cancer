@@ -27,6 +27,9 @@ library("phangorn")
 library("geiger")
 library("nlme")
 library("ggtree")
+library("visreg")
+library("tidytree")
+library("ggthemes")
 ```
 
 Data
@@ -70,9 +73,6 @@ pi2$invade[pi2$invade == "4"] <- "3"
 pi2$digit = pi2$X.5
 pi2$digit[pi2$digit == "1"] <- "4"
 pi2$digit[pi2$digit == "3"] <- "1"
-pi2$digit[pi2$digit == "2"] <- "0"
-pi2$digit[pi2$digit == "1"] <- "2"
-pi2$digit[pi2$digit == "0"] <- "1"
 pi2$digit[pi2$digit == "4"] <- "3"
 
 pi3 <- pi2 %>%
@@ -182,6 +182,28 @@ mammallist <- merge(specieskept, placentacancer2, by.x = "x", by.y = "species")%
 
 mammallist1 <- mammallist
 mammallist1[is.na(mammallist1)] <- 0
+
+mammal.table <- as_tibble(mammals)
+as.phylo(mammals)
+
+
+# Trying another tutorial
+
+x <- as_tibble(mammals) #tree as data table
+
+data <- placentacancer2%>%
+  rename("label"= species)
+
+y <- merge(x, data, by= "label") #tree + placenta + cancer data as a table
+
+str(y)
+
+y$invade <- as.numeric(y$invade)
+y$digit <- as.numeric(y$digit)
+y$prev.neo <- as.numeric(y$prev.neo)
+y$mal.trans <- as.numeric(y$mal.trans)
+
+as.treedata(y)
 ```
 
 
@@ -479,39 +501,55 @@ placentacancer1$placenta_invasiveness <- factor(placentacancer1$placenta_invasiv
 
 placentacancer1 %>%
   ggplot(.)+
-  geom_boxplot(aes(x = placenta_invasiveness, y = prev.neo))+
-  ggtitle("Neoplasia Prevalence by Degree of Placentation")+
+  geom_violin(aes(x = placenta_invasiveness, y = prev.neo, fill=placenta_invasiveness))+
+  ggtitle("Neoplasia Prevalence by Invasiveness")+
   xlab("Placental Invasion")+
-  ylab("Neoplasia %")
+  ylab("Neoplasia %")+
+  theme_pander()+
+  scale_fill_brewer()
 
 
-# Interdigitation x malignancy prevalence
-placentacancer1$interdigitation_placenta <- factor(placentacancer1$interdigitation_placenta,levels = c("Trabecular", "Villous", "Labyrinthine"))
+# Interdigitation x neoplasia prevalence
+placentacancer1$interdigitation_placenta <- factor(placentacancer1$interdigitation_placenta,levels = c("Villous", "Trabecular", "Labyrinthine"))
 
 
 placentacancer1 %>%
   ggplot(.)+
-  geom_boxplot(aes(x= interdigitation_placenta, y= prev.mal))+
-  ggtitle("Malignancy Prevalence by Fibroblast Interdigitation")+
+  geom_violin(aes(x= interdigitation_placenta, y= prev.neo, fill=interdigitation_placenta))+
+  ggtitle("Neoplasia Prevalence by Interdigitation")+
   xlab("Interdigitation Class")+
-  ylab("Malignancy %")
-  
+  ylab("Neoplasia %")+
+  theme_pander()+
+  scale_fill_brewer()
+
 
 # Placental invasion x malignant transformation rate
+
 placentacancer1 %>%
   ggplot(.)+
-  geom_boxplot(aes(x= placenta_invasiveness, y= mal.trans))+
-  ggtitle("Rate of Malignant Transformation by Degree of Placentation")+
+  geom_violin(aes(x= placenta_invasiveness, y= mal.trans, fill=placenta_invasiveness))+
+  ggtitle("Rate of Malignant Transformation by Invasion")+
   xlab("Placental Invasion")+
-  ylab("Rate of Malignant Transformation")
+  ylab("Rate of Malignant Transformation")+
+  theme_pander(lp= "none")+
+  scale_fill_brewer()
+
+lacentacancer1 %>%
+  ggplot(aes(x=placenta_invasiveness, y=mal.trans))+
+  geom_point() +
+  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE)
+
 
 # Interdigitation x malignant transformation rate
 placentacancer1 %>%
   ggplot(.)+
-  geom_boxplot(aes(x= interdigitation_placenta, y= mal.trans))+
-  ggtitle("Rate of Malignant Transformation by Fibroblast Interdigitation")+
+  geom_violin(aes(x= interdigitation_placenta, y= mal.trans, fill=interdigitation_placenta))+
+  ggtitle("Rate of Malignant Transformation by Interdigitation")+
   xlab("Interdigitation Class")+
-  ylab("Rate of Malignant Transformation")
+  ylab("Rate of Malignant Transformation")+
+  theme_pander(lp="none")+
+  scale_fill_brewer()
+
 
 
 
@@ -678,10 +716,38 @@ summary(pgls_invasion1)
 
 invasion1.df <- as.data.frame(pgls_invasion1)
 
-mammallist$invade <- as.character(mammallist$invade)
-mammallist$mal.trans <- as.numeric(mammallist$mal.trans)
 
-mammallist %>%
-  ggplot(aes(x=invade, y=mal.trans))+
-  geom_boxplot()
+# Neoplasia Prevalence x Invasion
+pgls_npinvade <- gls(neop1 ~ invasion1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_npinvade)
+
+npinvads.anova <- anova(pgls_npinvade)
+summary(npinvads.anova)
+
+
+# Neoplasia Prevalence x both
+pgls_npboth <- gls(neop1 ~ invasion1*interdig1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_npboth)
+
+
+#Malignant Transformaiton by both
+pgls_mtboth <- gls(malig1 ~ interdig1*invasion1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_mtboth)
+coef(pgls_mtboth)
 ```
+
+```{r}
+#mal.trans
+pgls_litter <- gls(mal.trans ~ l, correlation = corBrownian(phy = mammals_list), data = y, method = "ML")
+summary(pgls_npinvade)
+
+```
+
+
+```{r}
+v <- vcv(mammals,  model = "Brownian", corr = TRUE)
+
+z <- gls(x = mammallist$interdigitation_placenta, y = mammallist$mal.trans, v = v)
+
+```
+
