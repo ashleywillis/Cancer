@@ -30,6 +30,8 @@ library("ggtree")
 library("visreg")
 library("tidytree")
 library("ggthemes")
+library("wesanderson")
+library("kableExtra")
 ```
 
 Data
@@ -37,8 +39,10 @@ Data
 lh <- read_csv("Pantheria_og.csv")
 pi <- read.csv("placenta__more_interdigitation.csv")
 np <- read.csv("neoplasiaPrevalence.min10.2022-04-01T19_13.csv")
-tree <- ape::read.nexus("mammals_phylo.txt")
 mammals <- read.newick("mammals_species.nwk")
+brownian <- read.csv("brownian_pvalue.csv")%>%
+  rename(OutcomeMeasure = "ï..Outcome.Measure")%>%
+  rename(Invasiveness.Interdigitation = "Invasiveness...Interdigitation")
 
 ```
 
@@ -50,14 +54,16 @@ lh <- lh %>%
 
 # rename variable & convert from months to days
 lh2 <- lh %>%
-  select(msw93_binomial, x3_1_ageat_first_birth_d, x9_1_gestation_len_d, x14_1_inter_birth_interval_d, x15_1_litter_size, x16_1_litters_per_year, x17_1_max_longevity_m, x23_1_sexual_maturity_age_d)%>%
+  select(msw93_binomial, x5_1_adult_body_mass_g, x3_1_ageat_first_birth_d, x9_1_gestation_len_d, x14_1_inter_birth_interval_d, x15_1_litter_size, x16_1_litters_per_year, x17_1_max_longevity_m, x5_3_neonate_body_mass_g,x23_1_sexual_maturity_age_d)%>%
   rename(species = "msw93_binomial") %>%
+  rename(adultmass = "x5_1_adult_body_mass_g")%>%
   rename(agefb = "x3_1_ageat_first_birth_d") %>%
   rename(gestation = "x9_1_gestation_len_d") %>%
   rename(interv = "x14_1_inter_birth_interval_d") %>%
   rename(littersize = "x15_1_litter_size") %>%
   rename(litterpyr = "x16_1_litters_per_year") %>%
   rename(longev = "x17_1_max_longevity_m") %>%
+  rename(neonatemass = "x5_3_neonate_body_mass_g")%>%
   rename(sexmat = "x23_1_sexual_maturity_age_d")%>%
   mutate(longev *30)%>%
   rename(longevd = "longev * 30")
@@ -100,12 +106,15 @@ antimega <- anti_join(combo1, np2, by= "species")
 # Filter out missing values
 combo2 <- combo1 %>%
   filter(!agefb==-999.00) %>%
+  filter(!adultmass==-999.00)%>%
   filter(!gestation==-999.00) %>%
   filter(!gestation==-999.00) %>%
   filter(!interv==-999.00) %>%
   filter(!litterpyr==-999.00) %>%
   filter(!longev==-999.00) %>%
-  filter(!sexmat==-999.00)
+  filter(!sexmat==-999.00)%>%
+  filter(!neonatemass==-999.00)
+
 # Only 53 species with complete data!
 
 
@@ -117,10 +126,14 @@ lifecancer$tot.mal <- as.numeric(lifecancer$tot.mal)
 lifecancer$prev.mal <- as.numeric(lifecancer$prev.mal)
 lifecancer$mal.trans <- as.numeric(lifecancer$mal.trans)
 
+lifecancer2 <- lifecancer %>%
+  mutate_all(funs(str_replace(.," ","_"))) %>%
+   filter(!gestation==-999.00)
+
 # Placentas + Cancer data
 placentacancer <- merge(pi3, np2, by = "species")
 
-
+View(placentacancer)
 placentacancer1 <- placentacancer[-c(132),] 
 placentacancer1$invade <- as.numeric(placentacancer1$invade)
 placentacancer1$digit <- as.numeric(placentacancer1$digit)
@@ -138,30 +151,10 @@ placentacancer1$placenta_invasiveness[placentacancer1$placenta_invasiveness == "
 placentacancer2 <- placentacancer1 %>%
   mutate_all(funs(str_replace(.," ","_")))
 
-# Phylo
+# Phylogeny - Mammals + Placentas + Cancer
 species_placcancer <- placentacancer2 %>%
   dplyr::select("species")
 
-mammal_phy <- ggtree(tree$mammalST_bestDates)
-
-mammal_phy <- as.phylo(mammal_phy)
-
-species_phylo <- as.data.frame(mammal_phy$tip.label) %>%
-  rename("species"="mammal_phy$tip.label")
-
-species_kept <- merge(species_phylo, species_placcancer, by.x = "species", by.y = "species")
-
-species_kept_v <- as.vector(species_kept$species)
-
-small_mammal_k <- keep.tip(mammal_phy,species_kept_v)
-
-write.csv(species_kept_v,"species_kept_v.csv", row.names = FALSE, col.names = TRUE)
-species_kept_p <- read.csv("species_kept_v.csv")
-
-placenta_num <- merge(species_kept_p, placentacancer2, by.x = "x", by.y = "species") %>%
-  rename("species"=x)
-
-# Mammals
 mammals_list <- as.phylo(mammals)
 
 specmammal <- as.data.frame(mammals_list$tip.label)%>%
@@ -182,6 +175,33 @@ mammallist <- merge(specieskept, placentacancer2, by.x = "x", by.y = "species")%
 
 mammallist1 <- mammallist
 mammallist1[is.na(mammallist1)] <- 0
+
+mammal.table <- as_tibble(mammals)
+as.phylo(mammals)
+
+#Phylogeny - Mammals + Life History + Cancer
+species_lifecancer <- lifecancer2 %>%
+  dplyr::select("species")
+
+mammals_list <- as.phylo(mammals)
+
+specmammal2 <- as.data.frame(mammals_list$tip.label)%>%
+  rename("species"="mammals_list$tip.label")
+
+specieslist2 <- merge(specmammal2, species_lifecancer, by.x = "species", by.y = "species")
+
+specieslist_v2 <- as.vector(specieslist2$species)
+
+specieslist_k2 <- keep.tip(mammals, specieslist_v2)
+
+write.csv(specieslist_v2, "specieslist_v2.csv", row.names = FALSE, col.names = TRUE)
+
+specieskept2 <- read.csv("specieslist_v2.csv")
+
+mammallist2 <- merge(specieskept2, lifecancer2, by.x = "x", by.y = "species")%>%
+  rename("species"=x)
+
+mammallist3 <- mammallist2
 
 mammal.table <- as_tibble(mammals)
 as.phylo(mammals)
@@ -467,6 +487,15 @@ monpanova <- aov(prev.neo ~ maxoffspring, data = megaset5)
 summary(monpanova)
 ```
 
+Color Palette
+```{r}
+earth <- c("#61bc36", "#365a54", "#444444")
+
+orange <- c("#FF8459", "#CC530A", "#94280A")
+
+blue <- c("#A8D5C0", "#599BA1", "#1E4E64")
+```
+
 Life history graphs
 ```{r}
 # Lifespan x Time per litter x Placental invasion
@@ -489,7 +518,94 @@ combo2.4 %>%
   ggplot(., aes(y= birthpotent, x= placenta_invasiveness))+
   geom_boxplot()
 
+# Gestation x Invasiveness
+combo2$placenta_invasiveness[combo2$placenta_invasiveness == "epi"] <- "Epitheliochorial"
+combo2$placenta_invasiveness[combo2$placenta_invasiveness == "endo"] <- "Endotheliochorial"
+combo2$placenta_invasiveness[combo2$placenta_invasiveness == "hemo"] <- "Hemochorial"
+combo2$placenta_invasiveness <- factor(combo2$placenta_invasiveness,levels = c("Epitheliochorial", "Endotheliochorial", "Hemochorial"))
+combo2 %>%
+  ggplot(., aes(x= placenta_invasiveness, y= gestation))+
+  geom_boxplot()
 
+# Gestation x Interdigitation
+combo2$interdigitation_placenta <- factor(combo2$interdigitation_placenta,levels = c("Villous", "Trabecular", "Labyrinthine"))
+
+ggplot(combo2, aes(x= interdigitation_placenta, y= gestation, fill=interdigitation_placenta))+
+  geom_boxplot()+
+  ggtitle("Gestation Length by Interdigitation")+
+  xlab("Interdigitation Class")+
+  ylab("Gestation Length (Days)")+
+  theme_pander()+
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
+
+# Neonate Mass x Interdigitation
+combo2$interdigitation_placenta <- factor(combo2$interdigitation_placenta,levels = c("Villous", "Trabecular", "Labyrinthine"))
+ggplot(combo2, aes(x= interdigitation_placenta, y= neonatemass, fill=interdigitation_placenta))+
+  geom_boxplot()+
+  ggtitle("Neonate Mass by Interdigitation")+
+  xlab("Interdigitation Class")+
+  ylab("Neonate Mass (g)")+
+  theme_pander()+
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
+
+# Adult Mass x Interdigitation
+combo2$interdigitation_placenta <- factor(combo2$interdigitation_placenta,levels = c("Villous", "Trabecular", "Labyrinthine"))
+ggplot(combo2, aes(x= interdigitation_placenta, y= adultmass, fill=interdigitation_placenta))+
+  geom_boxplot()+
+  ylim(c(0,750000))+
+  ggtitle("Adult Mass by Interdigitation")+
+  xlab("Interdigitation Class")+
+  ylab("Adult Mass (g)")+
+  theme_pander()+
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
+
+# Birth Potential x Interdigitation
+combo2.4$interdigitation_placenta <- factor(combo2$interdigitation_placenta,levels = c("Villous", "Trabecular", "Labyrinthine"))
+ggplot(combo2.4, aes(x= interdigitation_placenta, y= birthpotent, fill=interdigitation_placenta))+
+  geom_boxplot()+
+  ggtitle("Birth Potential by Interdigitation")+
+  xlab("Interdigitation Class")+
+  ylab("Max # of births per lifetime")+
+  theme_pander()+
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
+
+# Max Offspring Output x Interdigitation
+combo2.4$interdigitation_placenta <- factor(combo2$interdigitation_placenta,levels = c("Villous", "Trabecular", "Labyrinthine"))
+ggplot(combo2.4, aes(x= interdigitation_placenta, y= maxoffspring, fill=interdigitation_placenta))+
+  geom_boxplot()+
+  ylim(c(0,150))+
+  ggtitle("Maximum Offspring Output by Interdigitation")+
+  xlab("Interdigitation Class")+
+  ylab("Max # of offspring per lifetime")+
+  theme_pander()+
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
+
+# Max Longevity x Interdigitation
+combo2$interdigitation_placenta <- factor(combo2$interdigitation_placenta,levels = c("Villous", "Trabecular", "Labyrinthine"))
+ggplot(combo2, aes(x= interdigitation_placenta, y= longevd, fill=interdigitation_placenta))+
+  geom_boxplot()+
+  ggtitle("Max Longevity by Interdigitation")+
+  xlab("Interdigitation Class")+
+  ylab("Max Longevity (Days)")+
+  theme_pander()+
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
+
+# Age of Sexual Maturity x Interdigitation
+combo2$interdigitation_placenta <- factor(combo2$interdigitation_placenta,levels = c("Villous", "Trabecular", "Labyrinthine"))
+ggplot(combo2, aes(x= interdigitation_placenta, y= sexmat, fill=interdigitation_placenta))+
+  geom_boxplot()+
+  ggtitle("Age at Sexual Maturity by Interdigitation")+
+  xlab("Interdigitation Class")+
+  ylab("Age at Sexual Maturity (Days)")+
+  theme_pander()+
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
 
 ```
 
@@ -503,10 +619,11 @@ placentacancer1 %>%
   ggplot(.)+
   geom_violin(aes(x = placenta_invasiveness, y = prev.neo, fill=placenta_invasiveness))+
   ggtitle("Neoplasia Prevalence by Invasiveness")+
-  xlab("Placental Invasion")+
+  xlab("Placenta Invasiveness")+
   ylab("Neoplasia %")+
   theme_pander()+
-  scale_fill_brewer()
+  scale_fill_manual(values = orange)+
+  theme(legend.position = "none")
 
 
 # Interdigitation x neoplasia prevalence
@@ -520,7 +637,33 @@ placentacancer1 %>%
   xlab("Interdigitation Class")+
   ylab("Neoplasia %")+
   theme_pander()+
-  scale_fill_brewer()
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
+
+# Placental invasion x malignancy prevalence
+
+placentacancer1 %>%
+  ggplot(.)+
+  geom_violin(aes(x = placenta_invasiveness, y = prev.mal, fill=placenta_invasiveness))+
+  ggtitle("Malignancy Prevalence by Invasiveness")+
+  xlab("Placenta Invasiveness")+
+  ylab("Malignant %")+
+  theme_pander()+
+  scale_fill_manual(values = orange)+
+  theme(legend.position = "none")
+
+
+# Interdigitation x malignancy prevalence
+
+placentacancer1 %>%
+  ggplot(.)+
+  geom_violin(aes(x= interdigitation_placenta, y= prev.mal, fill=interdigitation_placenta))+
+  ggtitle("Malignancy Prevalence by Interdigitation")+
+  xlab("Interdigitation Class")+
+  ylab("Malignant %")+
+  theme_pander()+
+  scale_fill_manual(values = blue)+
+  theme(legend.position = "none")
 
 
 # Placental invasion x malignant transformation rate
@@ -528,16 +671,12 @@ placentacancer1 %>%
 placentacancer1 %>%
   ggplot(.)+
   geom_violin(aes(x= placenta_invasiveness, y= mal.trans, fill=placenta_invasiveness))+
-  ggtitle("Rate of Malignant Transformation by Invasion")+
-  xlab("Placental Invasion")+
+  ggtitle("Rate of Malignant Transformation by Invasiveness")+
+  xlab("Placenta Invasiveness")+
   ylab("Rate of Malignant Transformation")+
   theme_pander(lp= "none")+
-  scale_fill_brewer()
-
-lacentacancer1 %>%
-  ggplot(aes(x=placenta_invasiveness, y=mal.trans))+
-  geom_point() +
-  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE)
+  scale_fill_manual(values = orange)+
+  theme(legend.position = "none")
 
 
 # Interdigitation x malignant transformation rate
@@ -548,8 +687,7 @@ placentacancer1 %>%
   xlab("Interdigitation Class")+
   ylab("Rate of Malignant Transformation")+
   theme_pander(lp="none")+
-  scale_fill_brewer()
-
+  scale_fill_manual(values = blue)
 
 
 
@@ -672,10 +810,10 @@ summary(maxoffmalprev)
 
 ```
 
-Phylogeny
+PGLS - Placentas + Cancer (Brownian)
 ```{r}
 
-# Malignant Transformation x Interdigitation
+# Malignant Transformation x Interdigitation (browninan)
 malig <- mammallist1[, "mal.trans"]
 interdig <- mammallist1[, "digit"]
 
@@ -690,7 +828,7 @@ coef(pgls_interdig)
 anova.pgls.mti <- anova(pgls_interdig)
 
 
-# Neoplasia Prevalence x Interdigitation
+# Neoplasia Prevalence x Interdigitation (Brownian)
 neop <- mammallist1[,"prev.neo"]
 
 neop1 <- as.numeric(neop)
@@ -701,10 +839,14 @@ coef(pgls_neointerdig)
 pgls_neointerdig1 <- anova(pgls_neointerdig)
 summary(pgls_neointerdig1)
 
+# Malignancy Prevalence by Interdigitation (Brownian)
+mal <- mammallist1[,"prev.mal"]
+mal1<- as.numeric(mal)
 
+pgls_malinterdig <- gls(mal1 ~ interdig1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_malinterdig)
 
-
-# Malignant Transformation x Invasion
+# Malignant Transformation x Invasion (Brownian)
 invasion <- mammallist1[, "invade"]
 invasion1 <- as.numeric(invasion)
 
@@ -717,37 +859,199 @@ summary(pgls_invasion1)
 invasion1.df <- as.data.frame(pgls_invasion1)
 
 
-# Neoplasia Prevalence x Invasion
+
+# Neoplasia Prevalence x Invasion (Brownian)
 pgls_npinvade <- gls(neop1 ~ invasion1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
 summary(pgls_npinvade)
 
 npinvads.anova <- anova(pgls_npinvade)
 summary(npinvads.anova)
 
+pgls_malinvade <- gls(mal1 ~ invasion1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_malinvade)
 
-# Neoplasia Prevalence x both
+# Neoplasia Prevalence x both (interactive)
 pgls_npboth <- gls(neop1 ~ invasion1*interdig1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
 summary(pgls_npboth)
 
+# Malignancy Prevalence x both (interactive)
+pgls_mpboth <- gls(mal1 ~ invasion1*interdig1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_mpboth)
 
-#Malignant Transformaiton by both
+#Malignant Transformaiton by both (interactive)
 pgls_mtboth <- gls(malig1 ~ interdig1*invasion1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
 summary(pgls_mtboth)
 coef(pgls_mtboth)
+
+# Neoplasia Prevalence x both (additive)
+pgls_npboth.add <- gls(neop1 ~ invasion1+interdig1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_npboth.add)
+
+
+#Malignant Transformaiton by both (additive)
+pgls_mtboth.add <- gls(malig1 ~ interdig1+invasion1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
+summary(pgls_mtboth.add)
+coef(pgls_mtboth)
+
+
+
+
+
 ```
 
+PGLS - Placentas + Cancer (Ornstein-Uhlenbeck)
 ```{r}
-#mal.trans
-pgls_litter <- gls(mal.trans ~ l, correlation = corBrownian(phy = mammals_list), data = y, method = "ML")
-summary(pgls_npinvade)
+# Malignant Transformation x Interdigitation (Ornstein-Uhlenbeck)
+ou.pgls.interdig <-corMartins(1,phy=mammals_list)
+ou.interdig<-gls(malig1~interdig1,correlation=ou.pgls.interdig,data=mammallist)
+summary(ou.interdig)
 
+# Neoplasia Prevalence x Interdigitation (Ornstein-Uhlenbeck)
+ou.pgls.neointerdig <-corMartins(1,phy=mammals_list)
+ou.neointerdig<-gls(neop1~interdig1,correlation=ou.pgls.neointerdig,data=mammallist)
+summary(ou.neointerdig)
+
+# Malignancy Prevalence x Interdigitation (Ornstein-Uhlenbeck)
+ou.pgls.malinterdig <-corMartins(1,phy=mammals_list)
+ou.malinterdig<-gls(mal1~interdig1,correlation=ou.pgls.neointerdig,data=mammallist)
+summary(ou.malinterdig)
+
+# Malignant Transformation x Invasion (Ornstein-Uhlenbeck)
+ou.pgls.invasion <-corMartins(1,phy=mammals_list)
+ou.invasion<-gls(malig1~invasion1,correlation=ou.pgls.invasion,data=mammallist)
+summary(ou.invasion)
+
+# Neoplasia Prevalence x Invasion (Ornstein-Uhlenbeck)
+ou.pgls.neoinvasion <-corMartins(1,phy=mammals_list)
+ou.neoinvasion1<-gls(neop1~invasion1,correlation=ou.pgls.neoinvasion,data=mammallist)
+summary(ou.neoinvasion1)
+
+#Malignancy Prevalence x Invasion (Ornstein-Uhlenbeck)
+ou.pgls.malinvade <-corMartins(1,phy=mammals_list)
+ou.malinvade<-gls(mal1~invasion1,correlation=ou.pgls.malinvade,data=mammallist)
+summary(ou.malinvade)
+
+# Neoplasia Prevalence x both (interactive)
+ou.pgls_npboth <- corMartins(1,phy=mammals_list)
+ou.npboth <- gls(neop1 ~ invasion1*interdig1, correlation = ou.pgls_npboth, data = mammallist)
+summary(ou.npboth)
+
+
+#Malignant Transformaiton by both (interactive)
+ou.pgls_mtboth <- corMartins(1,phy=mammals_list)
+ou.mtboth <- gls(malig1 ~ interdig1*invasion1, correlation = ou.pgls_mtboth, data = mammallist)
+summary(ou.mtboth)
+
+#Malignancy Prevalence by both (interactive)
+ou.pgls.mpboth <-corMartins(1,phy=mammals_list)
+ou.mpboth<-gls(mal1~interdig1*invasion1,correlation=ou.pgls.mpboth,data=mammallist)
+summary(ou.mpboth)
+
+# Neoplasia Prevalence x both (additive)
+ou.pgls_npboth.add <- corMartins(1,phy = mammals_list)
+ou.npboth.add <- gls(neop1 ~ invasion1+interdig1, correlation = ou.pgls_npboth.add, data = mammallist)
+summary(ou.npboth.add)
+
+
+#Malignant Transformaiton by both (additive)
+ou.pgls_mtboth.add <- corMartins(1,phy= mammals_list)
+ou.mtboth.add <- gls(malig1 ~ interdig1+invasion1, correlation = ou.pgls_mtboth.add, data = mammallist)
+summary(ou.mtboth.add)
 ```
 
-
+PGLS - Life History + Cancer
 ```{r}
-v <- vcv(mammals,  model = "Brownian", corr = TRUE)
+# Gestation Length x Neoplasia Prevalence
+gest <- mammallist3[, "gestation"]
+gest1 <- as.numeric(gest)
+ 
+neop2 <- mammallist3[, "prev.neo"]
+neop3 <- as.numeric(neop2)
 
-z <- gls(x = mammallist$interdigitation_placenta, y = mammallist$mal.trans, v = v)
+pgls_gestnp <- gls(neop3 ~ gest1, correlation = corBrownian(phy = mammals_list), data = mammallist3, method = "ML")
+
+summary(pgls_gestnp)
+coef(pgls_gestnp)
+
+# Gestation Length x Malignant Transformation
+mammallist4 <- mammallist3 %>%
+  na.omit(mammallist3)
+
+gest2 <- mammallist4[, "gestation"]
+gest3 <- as.numeric(gest2)
+
+malig2 <- mammallist4[, "mal.trans"]
+malig3 <- as.numeric(malig2) 
+
+pgls_gestmt <- gls(malig3 ~ gest3, correlation = corBrownian(phy = mammals_list), data = mammallist4, method = "ML")
+
+summary(pgls_gestmt)
+coef(pgls_gestmt)
 
 ```
+
+
+
+
+
+
+FGQ and LGQ x Cancer PGLS
+```{r}
+gest_cancer <- merge(gestation_neonate, np2, by = "species")
+lit_cancer <- merge(gestator, np2, by = "species")
+
+
+
+#load in phylogenic information, combine with placenta and lh info
+mammal_phy <- ggtree(tree$mammalST_bestDates)
+#%<+% phylo_df
+#makes into phylo class from ggtree
+mammal_phy<-as.phylo(mammal_phy)
+#Make data set for the phylogenic correction that has the placenta variables, neonate body size, gestation length, and GQ/LGQ 
+gestation_neonate_phylo1<-gest_cancer %>% 
+  dplyr::select(species,prev.neo,prev.mal, mal.trans, gq)
+# Next step is to remove mammals that are not represented in placenta df. We do this by creating a list of ones that dont match and then removing them.
+species_cancer<-gestation_neonate_phylo1 %>% 
+  dplyr::select("species")
+species_phylo<-as.data.frame(mammal_phy$tip.label) %>% 
+  mutate_all(funs(str_replace(.,"_"," ")))
+species_kept<-merge(species_cancer,species_phylo,by.y="mammal_phy$tip.label",by.x = "species") %>% 
+  mutate_all(funs(str_replace(.," ","_")))
+species_kept_v<-as.vector(species_kept$species)
+small_mammal_k<-keep.tip(mammal_phy,species_kept_v)
+write.csv(species_kept_v,"species_kept_v.csv",row.names = FALSE,col.names = TRUE)
+species_kept_p<-read.csv("species_kept_v.csv",header=TRUE)
+#clean placenta data so that it fits into the phylogeny information
+gestation_neonate_phylo2<-gestation_neonate_phylo1 %>% 
+  mutate_all(funs(str_replace(.," ","_")))
+gestation_neonate_phylo2$prev.neo<-as.numeric(gestation_neonate_phylo2$prev.neo)
+gestation_neonate_phylo2$prev.mal<-as.numeric(gestation_neonate_phylo2$prev.mal)
+gestation_neonate_phylo2$mal.trans<-as.numeric(gestation_neonate_phylo2$mal.trans)
+gestation_neonate_phylo2$gq<-as.numeric(gestation_neonate_phylo2$gq)
+
+#make comparative DF
+#comp_phylo2<-comparative.data(mammal_phy,gestation_neonate_phylo2, "species", vcv=FALSE, vcv.dim=2, na.omit=TRUE, 
+                 #force.root=FALSE, warn.dropped=FALSE, scope=NULL)
+
+#PGLS
+gestation_neonate_phylo3 <- gestation_neonate_phylo2 %>%
+  drop_na()
+
+  #FGQ x Malignant Transformation
+fgq_maltrans <- gls(gq ~ mal.trans, correlation = corBrownian(phy = mammal_phy), data = gestation_neonate_phylo3, method = "ML", )
+summary(fgq_maltrans) # P value 0.2309
+AIC(fgq_maltrans) #512.8376
+
+  #FGQ x Malignancy Prevalence
+fgq_malprev <- gls(gq ~ prev.mal, correlation = corBrownian(phy = mammal_phy), data = gestation_neonate_phylo3, method = "ML", )
+summary(fgq_malprev) # P value 0.9213
+AIC(fgq_malprev) #514.3031
+
+  #FGQ x Neopasia Prevalence
+fgq_neoprev <- gls(gq ~ prev.neo, correlation = corBrownian(phy = mammal_phy), data = gestation_neonate_phylo3, method = "ML", )
+summary(fgq_neoprev) # P value 0.7297
+AIC(fgq_neoprev) #514.1904
+
+```
+
 
