@@ -625,7 +625,6 @@ placentacancer1 %>%
   theme(legend.position = "none")
 
 # Placental invasion x malignancy prevalence
-
 placentacancer1 %>%
   ggplot(.)+
   geom_violin(aes(x = placenta_invasiveness, y = prev.mal, fill=placenta_invasiveness))+
@@ -638,7 +637,6 @@ placentacancer1 %>%
 
 
 # Interdigitation x malignancy prevalence
-
 placentacancer1 %>%
   ggplot(.)+
   geom_violin(aes(x= interdigitation_placenta, y= prev.mal, fill=interdigitation_placenta))+
@@ -651,7 +649,6 @@ placentacancer1 %>%
 
 
 # Placental invasion x malignant transformation rate
-
 placentacancer1 %>%
   ggplot(.)+
   geom_violin(aes(x= placenta_invasiveness, y= mal.trans, fill=placenta_invasiveness))+
@@ -672,10 +669,6 @@ placentacancer1 %>%
   ylab("Rate of Malignant Transformation")+
   theme_pander(lp="none")+
   scale_fill_manual(values = blue)
-
-
-
-
 
 ```
 
@@ -729,17 +722,14 @@ summary(invmalprev1)
 Interdigitation Correlation x Cancer Computations
 ```{r}
 # Interdigitation x Malignant Transformation
-
 digmal1 <- lm(placentacancer1$digit ~ placentacancer1$mal.trans)
 summary(digmal1)
 
 # Interdigitation x Neoplasia Prevalence
-
 digneo1 <- lm(placentacancer1$digit ~ placentacancer1$prev.neo)
 summary(digneo1)
 
 # Interdigitation x Malignancy Prevalence
-
 digmalprev1 <- lm(placentacancer1$digit ~ placentacancer1$prev.mal)
 summary(digmalprev1)
 
@@ -748,17 +738,14 @@ summary(digmalprev1)
 Life History x Cancer Correlation Computations
 ```{r}
 # Lifespan x Malignant Transformation
-
 longevdmal1 <- lm(lifecancer$longevd ~ lifecancer$mal.trans)
 summary(longevdmal1)
 
 # Lifespan x Neoplasia Prevalence
-
 longevdneo1 <- lm(lifecancer$longevd ~ lifecancer$prev.neo)
 summary(longevdneo1)
 
 # Lifespan x Malignancy Prevalence
-
 longevdmalprev1 <- lm(lifecancer$longevd ~ lifecancer$prev.mal)
 summary(longevdmalprev1)
 
@@ -807,7 +794,6 @@ interdig1 <- as.numeric(interdig)
 pgls_interdig <- gls(malig1 ~ interdig1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
 summary(pgls_interdig)
 coef(pgls_interdig)
-
 
 anova.pgls.mti <- anova(pgls_interdig)
 
@@ -876,10 +862,6 @@ summary(pgls_npboth.add)
 pgls_mtboth.add <- gls(malig1 ~ interdig1+invasion1, correlation = corBrownian(phy = mammals_list), data = mammallist, method = "ML")
 summary(pgls_mtboth.add)
 coef(pgls_mtboth)
-
-
-
-
 
 ```
 
@@ -973,11 +955,6 @@ summary(pgls_gestmt)
 coef(pgls_gestmt)
 
 ```
-
-
-
-
-
 
 FGQ and LGQ x Cancer PGLS
 ```{r}
