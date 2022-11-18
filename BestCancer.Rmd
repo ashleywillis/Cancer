@@ -26,7 +26,6 @@ library("phytools")
 library("phangorn")
 library("geiger")
 library("nlme")
-library("ggtree")
 library("visreg")
 library("tidytree")
 library("ggthemes")
@@ -36,23 +35,23 @@ library("kableExtra")
 
 Data
 ```{r}
-lh <- read_csv("Pantheria_og.csv")
-pi <- read.csv("placenta__more_interdigitation.csv")
-np <- read.csv("neoplasiaPrevalence.min10.2022-04-01T19_13.csv")
-mammals <- read.newick("mammals_species.nwk")
-brownian <- read.csv("brownian_pvalue.csv")%>%
-  rename(OutcomeMeasure = "ï..Outcome.Measure")%>%
-  rename(Invasiveness.Interdigitation = "Invasiveness...Interdigitation")
+lh <- read_csv("Pantheria_og.csv") #life history date
+pi <- read.csv("placenta__more_interdigitation.csv") # placenta data
+np <- read.csv("neoplasiaPrevalence.min10.2022-04-01T19_13.csv") # cancer data
+mammals <- read.newick("mammals_species.nwk") # phylogeny data
+#brownian <- read.csv("brownian_pvalue.csv")%>% 
+ # rename(OutcomeMeasure = "ï..Outcome.Measure")%>%
+  #rename(Invasiveness.Interdigitation = "Invasiveness...Interdigitation")
 
 ```
 
-Cleaning Data
+# Wrangling Data
 ```{r}
 # Selecting & renaming variables
 lh <- lh %>%
   clean_names()
 
-# rename variable & convert from months to days
+# select variables of interest, rename variables, & convert from months to days. Note to used days throughout!!
 lh2 <- lh %>%
   select(msw93_binomial, x5_1_adult_body_mass_g, x3_1_ageat_first_birth_d, x9_1_gestation_len_d, x14_1_inter_birth_interval_d, x15_1_litter_size, x16_1_litters_per_year, x17_1_max_longevity_m, x5_3_neonate_body_mass_g,x23_1_sexual_maturity_age_d)%>%
   rename(species = "msw93_binomial") %>%
@@ -70,17 +69,17 @@ lh2 <- lh %>%
 
 pi2 <- pi %>%
   select(species, placenta_invasiveness, X.4, interdigitation_placenta, X.5)
-
+# Un-reverse score the numeric ordinal variables
 pi2$invade = pi2$X.4
-pi2$invade[pi2$invade == "1"] <- "4"
+pi2$invade[pi2$invade == "1"] <- "4" # used 4 to get these values out of the way for renaming "3's" as "1's"
 pi2$invade[pi2$invade == "3"] <- "1"
 pi2$invade[pi2$invade == "4"] <- "3"
 
 pi2$digit = pi2$X.5
-pi2$digit[pi2$digit == "1"] <- "4"
+pi2$digit[pi2$digit == "1"] <- "4" # same here
 pi2$digit[pi2$digit == "3"] <- "1"
 pi2$digit[pi2$digit == "4"] <- "3"
-
+#select variables with correctly scored numeric ordinal variables
 pi3 <- pi2 %>%
   select(species, placenta_invasiveness, invade, interdigitation_placenta, digit)
 
@@ -93,19 +92,13 @@ np2 <- np %>%
   rename(prev.mal = "X.10") %>%
   rename(mal.trans = "X.11")
 
-# Life history + placental invasion/interdigitation
+# Life history + placenta data
 combo1 <- merge(lh2, pi3, by= "species")
 
-anticombo1 <- anti_join(lh2, pi3, by = "species")
-
-# Life history + placental invasion/interdigitation + neoplasia/malignancy
-megaset <- merge(combo1, np2, by= "species")
-
-antimega <- anti_join(combo1, np2, by= "species")
-
+anticombo1 <- anti_join(lh2, pi3, by = "species") # list of animals we have LH data for, but not placenta data
 # Filter out missing values
 combo2 <- combo1 %>%
-  filter(!agefb==-999.00) %>%
+  filter(!agefb==-999.00) %>% # -999.0 = missing data
   filter(!adultmass==-999.00)%>%
   filter(!gestation==-999.00) %>%
   filter(!gestation==-999.00) %>%
@@ -114,13 +107,16 @@ combo2 <- combo1 %>%
   filter(!longev==-999.00) %>%
   filter(!sexmat==-999.00)%>%
   filter(!neonatemass==-999.00)
+# Only 53 species with complete LH + placenta data!
 
-# Only 53 species with complete data!
+# Life history + placental + cancer data
+megaset <- merge(combo1, np2, by= "species")
 
+antimega <- anti_join(combo1, np2, by= "species") # list of animals we have LH + placenta data for, but not cancer data
 
-# Life history + Cancer data
+# Life history + cancer data
 lifecancer <- merge(lh2, np2, by = "species")
-lifecancer$tot.neo <- as.numeric(lifecancer$tot.neo)
+lifecancer$tot.neo <- as.numeric(lifecancer$tot.neo) # set rates as numeric
 lifecancer$prev.neo <- as.numeric(lifecancer$prev.neo)
 lifecancer$tot.mal <- as.numeric(lifecancer$tot.mal)
 lifecancer$prev.mal <- as.numeric(lifecancer$prev.mal)
@@ -129,29 +125,32 @@ lifecancer$mal.trans <- as.numeric(lifecancer$mal.trans)
 lifecancer2 <- lifecancer %>%
   mutate_all(funs(str_replace(.," ","_"))) %>%
    filter(!gestation==-999.00)
+# 143 species with complete LH + cancer data
 
 # Placentas + Cancer data
 placentacancer <- merge(pi3, np2, by = "species")
 
-View(placentacancer)
-placentacancer1 <- placentacancer[-c(132),] 
-placentacancer1$invade <- as.numeric(placentacancer1$invade)
+placentacancer1 <- placentacancer[-c(132),] # merge threw column labels in the data set, remove this row!
+placentacancer1$invade <- as.numeric(placentacancer1$invade) # set rates as numeric
 placentacancer1$digit <- as.numeric(placentacancer1$digit)
 placentacancer1$tot.neo <- as.numeric(placentacancer1$tot.neo)
 placentacancer1$prev.neo <- as.numeric(placentacancer1$prev.neo)
 placentacancer1$tot.mal <- as.numeric(placentacancer1$tot.mal)
 placentacancer1$prev.mal <- as.numeric(placentacancer1$prev.mal)
 placentacancer1$mal.trans <- as.numeric(placentacancer1$mal.trans)
-
+#Rename so graphs are prettier :)
 placentacancer1$placenta_invasiveness[placentacancer1$placenta_invasiveness == "epi"] <- "Epitheliochorial"
 placentacancer1$placenta_invasiveness[placentacancer1$placenta_invasiveness == "endo"] <- "Endotheliochorial"
 placentacancer1$placenta_invasiveness[placentacancer1$placenta_invasiveness == "hemo"] <- "Hemochorial"
 
-
 placentacancer2 <- placentacancer1 %>%
-  mutate_all(funs(str_replace(.," ","_")))
+  mutate_all(funs(str_replace(.," ","_"))) # replace all spaces in species names with underscores to be consistent with phylogeny data
+```
 
-# Phylogeny - Mammals + Placentas + Cancer
+# Phylogeny wrangling
+Comments on this section would be pretty long to explain in each step. In essence, this code was computed to ensure there is complete data for the PGLS models. I'd recommend running this code line by line & taking a look at the object/output to visualize and make sense of what is happening in each step. Feel free to reach out if you'd like further explanation!
+```{r}
+# Phylogeny - Mammals + Placentas + Cancer (no Life History)
 species_placcancer <- placentacancer2 %>%
   dplyr::select("species")
 
@@ -179,11 +178,10 @@ mammallist1[is.na(mammallist1)] <- 0
 mammal.table <- as_tibble(mammals)
 as.phylo(mammals)
 
+
 #Phylogeny - Mammals + Life History + Cancer
 species_lifecancer <- lifecancer2 %>%
   dplyr::select("species")
-
-mammals_list <- as.phylo(mammals)
 
 specmammal2 <- as.data.frame(mammals_list$tip.label)%>%
   rename("species"="mammals_list$tip.label")
@@ -202,32 +200,17 @@ mammallist2 <- merge(specieskept2, lifecancer2, by.x = "x", by.y = "species")%>%
   rename("species"=x)
 
 mammallist3 <- mammallist2
+mammallist3[is.na(mammallist3)] <- 0
 
 mammal.table <- as_tibble(mammals)
 as.phylo(mammals)
 
-
-# Trying another tutorial
-
-x <- as_tibble(mammals) #tree as data table
-
-data <- placentacancer2%>%
-  rename("label"= species)
-
-y <- merge(x, data, by= "label") #tree + placenta + cancer data as a table
-
-str(y)
-
-y$invade <- as.numeric(y$invade)
-y$digit <- as.numeric(y$digit)
-y$prev.neo <- as.numeric(y$prev.neo)
-y$mal.trans <- as.numeric(y$mal.trans)
-
-as.treedata(y)
 ```
+Okay all the wrangling is finally done...
 
+One of my hypotheses for life history traits that may better explain cancer vulnerability rather than placental morphology was maximum offspring output. Basically the quantity over quality concept of life history/cancer discussions to the absolute extreme. Here I went through our LH data & computed for maximum offspring output or "maximum babies per lifetime". This data set is used later.
 
-Computations
+# Life History computations
 ```{r}
 # Computing for births per lifetime:
 #   Lifespan - age at sexual maturation (assumes no post-reproductive period) = Reproductive lifespan
@@ -237,8 +220,8 @@ combo2.1 <- combo2 %>%
 
 #   Gestation length + interbirth interval = Time per litter
 combo2.2 <- combo2.1 %>%
-  mutate(gestation + interv) %>%
-  rename(timeprlit = "gestation + interv")
+ mutate(gestation + interv) %>%
+ rename(timeprlit = "gestation + interv")
 
 #   Reproductive lifespan / time per litter = Birthing potential
 combo2.3 <- combo2.2 %>%
@@ -251,19 +234,18 @@ combo2.4 <- combo2.3 %>%
   mutate(birthpotent * littersize) %>%
   rename(maxoffspring = "birthpotent * littersize")
 
-
-
+# throw it together in a master data set to use later
 megaset5 <- merge(combo2.4, placentacancer1, by = "species")
-
-
 ```
 
-Placental Invasion x Cancer ANOVAs
+Now we should have all the data sets we need & it's time to start doing analyses. The first step is to look at ANOVAs. If you're not familiar, ANOVAs test for variance in means across groups. The ANOVAs don't tell us a whole lot on their own, so I assigned each ANOVA to its own object for "best fit" modeling later.
+
+# Placental Invasion x Cancer ANOVAs
 ```{r}
 # Malignant transformation as a function of placental invasion
 pmtanova <- aov(mal.trans ~ invade, data = placentacancer1)
 
-summary(pmtanova)
+summary(pmtanova) # 22 N/As
 
 # Malignancy prevalence as a function of placental invasion
 pmpanova <- aov(prev.mal ~ invade, data = placentacancer1)
@@ -275,10 +257,9 @@ pnpanova <- aov(prev.neo ~ invade, data = placentacancer1)
 
 summary(pnpanova)
 
-
 ```
 
-Interdigitation x Cancer ANOVAs
+# Interdigitation x Cancer ANOVAs
 ```{r}
 # Malignant transformation as a function of interdigitation
 imtanova <- aov(mal.trans ~ digit, data = placentacancer1)
@@ -296,7 +277,7 @@ inpanova <- aov(prev.neo ~ digit, data = placentacancer1)
 summary(inpanova)
 ```
 
-Invasion + Interdigitation ANOVAs (additive testing)
+# Invasion + Interdigitation x Cancer ANOVAs (additive testing)
 ```{r}
 # Malignant transformation as a function of invasion + interdigitation
 pimtanova <- aov(mal.trans ~ invade + digit, data = placentacancer1)
@@ -314,12 +295,12 @@ pinpanova <- aov(prev.neo ~ invade + digit, data = placentacancer1)
 summary(pinpanova)
 ```
 
-Invasion * Interdigitation ANOVAs (interaction testing)
+Invasion * Interdigitation x Cancer ANOVAs (interaction testing)
 ```{r}
 # Malignant transformation as a function of invasion * interdigitation
 pimtanova1 <- aov(mal.trans ~ invade * digit, data = placentacancer1)
 
-summary(pimtanova1)
+summary(pimtanova1) #22 N/As
 
 # Malignancy prevalence as a function of invasion * interdigitation
 pimpanova1 <- aov(prev.mal ~ invade * digit, data = placentacancer1)
@@ -332,7 +313,9 @@ pinpanova1 <- aov(prev.neo ~ invade * digit, data = placentacancer1)
 summary(pinpanova1)
 ```
 
-Invasion AICs
+Okay! So now we have tested for variance & have a bunch of numbers that aren't super telling. Now we will test the ANOVAs against one another through Akaike information criterion (AICs) to determine which ANOVA model is th "best fit".
+
+# Invasion AICs
 ```{r}
 # Malignant Transformation
 mtset <- list(pmtanova, pimtanova, pimtanova1)
@@ -370,10 +353,9 @@ par(mfrow=c(2,2))
 plot(pnpanova)
 par(mfrow=c(1,1))
 
-
 ```
 
-Interdigitation AICs
+# Interdigitation AICs
 ```{r}
 # Malignant Transformation
 mtsetd <- list(imtanova, pimtanova, pimtanova1)
@@ -391,7 +373,6 @@ plot(pimtanova1)
 par(mfrow=c(1,1))
 
 
-
 # Malignancy Prevalence
 mpsetd <- list(impanova, pimpanova, pimpanova1)
 mpnamesd <- c("impanova", "pimpanova", "pimpanova1")
@@ -402,7 +383,6 @@ aictab(mpsetd, modnames = mpnamesd)
 par(mfrow=c(2,2))
 plot(impanova)
 par(mfrow=c(1,1))
-
 
 
 # Neoplasia Prevalence
@@ -417,7 +397,9 @@ plot(inpanova)
 par(mfrow=c(1,1))
 ```
 
-Tukey's HSD 
+I don't know why my Tukeys stopped working, looking into this but ignore for now.
+
+# Tukey's HSD 
 ```{r}
 # Malignant Transfromation as a function of the interaction of Placental Invasion & Interdigitation
 #tukey.pimt <- TukeyHSD(pimtanova1)
@@ -450,7 +432,9 @@ Tukey's HSD
 #plot(tukey.inp)
 ```
 
-Birth Potential x Cancer ANOVAs (nothing significant)
+Now we'll do the same thing must use the maximum offspring output variable we created earlier.
+
+# Birth Potential x Cancer ANOVAs (nothing significant)
 ```{r}
 # Malignant transformation as a function of birth potential
 bpmtanova <- aov(mal.trans ~ birthpotent, data = megaset5)
@@ -469,7 +453,7 @@ summary(bpnpanova)
 
 ```
 
-Maximum Offspring x Cancer ANOVAs (nothing significant)
+# Maximum Offspring x Cancer ANOVAs (nothing significant)
 ```{r}
 # Malignant transformation as a function of maximum offspring
 momtanova <- aov(mal.trans ~ maxoffspring, data = megaset5)
